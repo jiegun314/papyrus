@@ -26,19 +26,25 @@ metaRouter.post('/categories', (req, res) => {
     const id = createCategory(name, req.body?.color);
     res.status(201).json({ id });
   } catch (e: any) {
-    if (String(e.message).includes('UNIQUE')) {
-      return res.status(400).json({ error: '该分类已存在' });
-    }
-    res.status(500).json({ error: e.message || '创建失败' });
+    const msg = String(e.message || '');
+    if (msg.includes('UNIQUE')) return res.status(400).json({ error: '该分类已存在' });
+    if (msg.includes('颜色')) return res.status(400).json({ error: msg });
+    res.status(500).json({ error: msg || '创建失败' });
   }
 });
 
 // PUT /api/categories/:id  body: { name?, color? }
 metaRouter.put('/categories/:id', (req, res) => {
   const id = Number(req.params.id);
-  const cat = updateCategory(id, req.body?.name, req.body?.color);
-  if (!cat) return res.status(404).json({ error: '分类不存在' });
-  res.json(cat);
+  try {
+    const cat = updateCategory(id, req.body?.name, req.body?.color);
+    if (!cat) return res.status(404).json({ error: '分类不存在' });
+    res.json(cat);
+  } catch (e: any) {
+    const msg = String(e.message || '');
+    if (msg.includes('颜色')) return res.status(400).json({ error: msg });
+    res.status(500).json({ error: msg || '更新失败' });
+  }
 });
 
 // DELETE /api/categories/:id

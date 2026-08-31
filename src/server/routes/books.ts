@@ -6,23 +6,30 @@
 import { Router } from 'express';
 import {
   listBooks, getBook, createBook, updateBook, deleteBook,
-  setBookTags, setBookCategory, borrowBook, returnBook,
+  setBookTags, setBookCategory, setBookCoverPath, borrowBook, returnBook,
   addReview, updateReview, deleteReview,
 } from '../services/bookService.js';
+import { downloadCover } from '../services/cover.js';
+import { fetchBookDetail, fetchBookByIsbn } from '../services/douban.js';
 import type { BookInput } from '../../shared/types.js';
 
 export const booksRouter = Router();
 
 /* ---------- 列表 ---------- */
 
-// GET /api/books?keyword=&categoryId=&tagId=&status=&limit=&offset=
+// GET /api/books?keyword=&categoryId=&tagId=&status=&hasReview=&hasTag=&hasCategory=&limit=&offset=
 booksRouter.get('/', (req, res) => {
   const { keyword, categoryId, tagId, status, limit, offset } = req.query;
+  const bool = (v: unknown): boolean | undefined =>
+    v === 'true' || v === '1' ? true : v === 'false' || v === '0' ? false : undefined;
   const books = listBooks({
     keyword: typeof keyword === 'string' ? keyword : undefined,
     categoryId: categoryId ? Number(categoryId) : undefined,
     tagId: tagId ? Number(tagId) : undefined,
     status: status === 'in' || status === 'out' ? status : undefined,
+    hasReview: bool(req.query.hasReview),
+    hasTag: bool(req.query.hasTag),
+    hasCategory: bool(req.query.hasCategory),
     limit: limit ? Number(limit) : undefined,
     offset: offset ? Number(offset) : undefined,
   });
@@ -117,6 +124,45 @@ booksRouter.post('/:id/return', (req, res) => {
     res.json(book);
   } catch (e: any) {
     res.status(400).json({ error: e.message || '归还失败' });
+  }
+});
+
+/* ---------- 封面 ---------- */
+
+// POST /api/books/:id/cover —— 重新下载封面（此前豆瓣导入时下载失败可手动重试）
+booksRouter.post('/:id/cover', async (req, res) => {
+  const id = Number(req.params.id);
+  const book = getBook(id);
+  if (!book) return res.status(404).json({ error: '书籍不存在' });
+
+  // 优先用已保存的豆瓣封面地址；没有则尝试从豆瓣重新抓取详情
+  let coverUrl = book.coverUrl;
+  if (!coverUrl) {
+    try {
+      const detail = book.doubanId
+        ? await fetchBookDetail(book.doubanId)
+        : book.isbn13 || book.isbn10
+          ? await fetchBookByIsbn(book.isbn13 ?? book.isbn10!)
+          : null;
+      coverUrl = (detail?.coverUrl as string | null) ?? null;
+    } catch (e: any) {
+      return res.status(502).json({ error: `重新获取封面信息失败：${e.message}` });
+    }
+  }
+
+  if (!coverUrl) {
+    return res.status(400).json({ error: '这本书没有可用的封面来源（未关联豆瓣）' });
+  }
+
+  try {
+    const localPath = await downloadCover(book.doubanId, coverUrl, book.title);
+    if (!localPath) {
+      return res.status(502).json({ error: '封面下载失败（豆瓣可能暂时拒绝请求），请稍后再试' });
+    }
+    setBookCoverPath(id, localPath);
+    res.json(getBook(id));
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || '封面下载失败' });
   }
 });
 

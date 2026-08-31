@@ -41,6 +41,9 @@ export const api = {
     if (query.categoryId) params.set('categoryId', String(query.categoryId));
     if (query.tagId) params.set('tagId', String(query.tagId));
     if (query.status) params.set('status', query.status);
+    if (query.hasReview) params.set('hasReview', 'true');
+    if (query.hasTag) params.set('hasTag', 'true');
+    if (query.hasCategory) params.set('hasCategory', 'true');
     if (query.limit) params.set('limit', String(query.limit));
     if (query.offset) params.set('offset', String(query.offset));
     const qs = params.toString();
@@ -49,6 +52,11 @@ export const api = {
 
   getBook(id: number): Promise<Book> {
     return request(`/api/books/${id}`);
+  },
+
+  /** 重新下载封面（豆瓣导入时下载失败后手动重试） */
+  retryCover(id: number): Promise<Book> {
+    return request(`/api/books/${id}/cover`, { method: 'POST' });
   },
 
   createBook(input: BookInput): Promise<Book> {

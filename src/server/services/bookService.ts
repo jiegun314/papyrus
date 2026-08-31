@@ -98,6 +98,15 @@ export function listBooks(query: BookQuery): Book[] {
     where.push(`EXISTS (SELECT 1 FROM book_tags bt2 WHERE bt2.book_id = b.id AND bt2.tag_id = ?)`);
     params.push(query.tagId);
   }
+  if (query.hasReview) {
+    where.push('EXISTS (SELECT 1 FROM reviews r WHERE r.book_id = b.id)');
+  }
+  if (query.hasTag) {
+    where.push('EXISTS (SELECT 1 FROM book_tags bt3 WHERE bt3.book_id = b.id)');
+  }
+  if (query.hasCategory) {
+    where.push('b.category_id IS NOT NULL');
+  }
 
   const limit = Math.min(query.limit ?? 200, 500);
   const offset = query.offset ?? 0;
@@ -257,9 +266,20 @@ export function listCategories() {
   }));
 }
 
+/** 校验分类颜色不与其他分类重复（excludeId 用于重命名/改色时排除自身） */
+function assertColorUnique(color: string, excludeId?: number): void {
+  const db = getDb();
+  const row = db
+    .prepare('SELECT id FROM categories WHERE color = ? AND (? IS NULL OR id != ?)')
+    .get(color, excludeId ?? null, excludeId ?? null);
+  if (row) throw new Error('该分类颜色已被其他分类使用，请更换');
+}
+
 export function createCategory(name: string, color: string) {
   const db = getDb();
-  const info = db.prepare('INSERT INTO categories (name, color) VALUES (?, ?)').run(name.trim(), color || '#6b7280');
+  const c = color?.trim() || '#6b7280';
+  assertColorUnique(c);
+  const info = db.prepare('INSERT INTO categories (name, color) VALUES (?, ?)').run(name.trim(), c);
   return Number(info.lastInsertRowid);
 }
 
@@ -267,11 +287,10 @@ export function updateCategory(id: number, name?: string, color?: string) {
   const db = getDb();
   const cur = db.prepare('SELECT * FROM categories WHERE id = ?').get(id) as any;
   if (!cur) return null;
-  db.prepare('UPDATE categories SET name = ?, color = ? WHERE id = ?').run(
-    name?.trim() || cur.name,
-    color || cur.color,
-    id
-  );
+  const newName = name?.trim() || cur.name;
+  const newColor = color?.trim() || cur.color;
+  if (newColor !== cur.color) assertColorUnique(newColor, id);
+  db.prepare('UPDATE categories SET name = ?, color = ? WHERE id = ?').run(newName, newColor, id);
   return db.prepare('SELECT * FROM categories WHERE id = ?').get(id);
 }
 

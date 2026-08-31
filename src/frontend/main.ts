@@ -5,7 +5,7 @@
  * 入口文件，由 esbuild 打包为 public/app.js。
  */
 import './style.css';
-import { api, ApiError } from './api.js';
+import { api } from './api.js';
 import {
   esc, el, toast, openModal, starsComponent, loadingElement, fmtDate, fmtRating,
 } from './ui.js';
@@ -42,7 +42,7 @@ function coverUrl(book: Book): string | null {
   return null;
 }
 
-function coverBlock(book: Book, cls = 'book-cover'): HTMLElement {
+function coverBlock(book: Book, cls = 'book-cover', onError?: () => void): HTMLElement {
   const box = el('div', cls);
   const url = coverUrl(book);
   if (url) {
@@ -53,6 +53,7 @@ function coverBlock(book: Book, cls = 'book-cover'): HTMLElement {
     img.addEventListener('error', () => {
       box.innerHTML = '';
       box.appendChild(placeholderIcon());
+      onError?.();
     });
     box.appendChild(img);
   } else {
@@ -133,21 +134,34 @@ async function renderShelf(): Promise<void> {
   }
 }
 
-/** 统计卡片 */
+/** 统计卡片：卡片数量 >0 时可点击；标签/分类卡片进入对应管理视图，其余卡片弹出书籍清单 */
 function renderStats(stats: { totalBooks: number; inLibrary: number; borrowed: number; tagCount: number; categoryCount: number; reviewCount: number }): HTMLElement {
   const row = el('div', 'stats-row');
-  const cards: [string, number | string, string?][] = [
-    ['藏书总数', stats.totalBooks],
-    ['在架', stats.inLibrary, 'green'],
-    ['借出', stats.borrowed, 'teal'],
-    ['书评数', stats.reviewCount],
-    ['标签', stats.tagCount],
-    ['分类', stats.categoryCount],
+  type CardDef = { label: string; count: number; color?: string } & (
+    | { kind: 'list'; title: string; query: BookQuery }
+    | { kind: 'view'; view: 'tags' | 'categories' }
+  );
+  const defs: CardDef[] = [
+    { label: '藏书总数', count: stats.totalBooks, kind: 'list', title: '全部书籍', query: {} },
+    { label: '在架', count: stats.inLibrary, color: 'green', kind: 'list', title: '在架书籍', query: { status: 'in' } },
+    { label: '借出', count: stats.borrowed, color: 'teal', kind: 'list', title: '借出书籍', query: { status: 'out' } },
+    { label: '书评数', count: stats.reviewCount, kind: 'list', title: '有书评的书籍', query: { hasReview: true } },
+    { label: '标签', count: stats.tagCount, kind: 'view', view: 'tags' },
+    { label: '分类', count: stats.categoryCount, kind: 'view', view: 'categories' },
   ];
-  for (const [label, num, color] of cards) {
-    const card = el('div', 'stat-card');
-    const n = el('div', `stat-num ${color || ''}`, String(num));
-    card.append(n, el('div', 'stat-label', label));
+  for (const d of defs) {
+    const clickable = d.count > 0;
+    const card = el(clickable ? 'button' : 'div', 'stat-card');
+    if (clickable) {
+      card.classList.add('clickable');
+      card.title = d.kind === 'list' ? `查看${d.title}` : `打开${d.label}列表`;
+      card.addEventListener('click', () => {
+        if (d.kind === 'list') openBooksByFilter(d.title, d.query);
+        else switchView(d.view);
+      });
+    }
+    const n = el('div', `stat-num ${d.color || ''}`, String(d.count));
+    card.append(n, el('div', 'stat-label', d.label));
     row.appendChild(card);
   }
   return row;
@@ -165,12 +179,55 @@ function renderFilterBar(): HTMLElement {
   searchInput.placeholder = '搜索书名 / 作者 / ISBN / 出版社…';
   searchInput.value = state.shelfQuery.keyword ?? '';
   let debounce: number | undefined;
-  searchInput.addEventListener('input', () => {
+  // 中文输入法组合期间（compositionstart ~ compositionend）会连续触发 input 事件，
+  // 若此时触发重渲染，正在组合的输入框会被销毁，导致无法正常输入中文，必须跳过。
+  let composing = false;
+  // 搜索框是否处于聚焦状态：用于搜索触发的重渲染后恢复焦点，方便连续输入
+  let searchFocused = false;
+  searchInput.addEventListener('focus', () => {
+    searchFocused = true;
+  });
+  searchInput.addEventListener('blur', () => {
+    searchFocused = false;
+  });
+
+  const doSearch = async () => {
+    state.shelfQuery.keyword = searchInput.value.trim() || undefined;
+    const restoreFocus = searchFocused;
+    await renderShelf();
+    // 重渲染会重建筛选栏，恢复焦点与光标位置，避免每输入几个字符就要重新点击输入框
+    if (restoreFocus) {
+      const box = document.querySelector<HTMLInputElement>('.search-box input');
+      if (box) {
+        box.focus();
+        const len = box.value.length;
+        box.setSelectionRange(len, len);
+      }
+    }
+  };
+  const scheduleSearch = () => {
     window.clearTimeout(debounce);
-    debounce = window.setTimeout(() => {
-      state.shelfQuery.keyword = searchInput.value.trim() || undefined;
-      renderShelf();
-    }, 350);
+    debounce = window.setTimeout(doSearch, 350);
+  };
+  searchInput.addEventListener('compositionstart', () => {
+    composing = true;
+    window.clearTimeout(debounce);
+  });
+  searchInput.addEventListener('compositionend', () => {
+    composing = false;
+    scheduleSearch();
+  });
+  searchInput.addEventListener('input', (e) => {
+    // 输入法组合中（或事件自带 isComposing 标记）只更新文本框，不触发搜索
+    if (composing || (e as InputEvent).isComposing) return;
+    scheduleSearch();
+  });
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !composing) {
+      e.preventDefault();
+      window.clearTimeout(debounce);
+      doSearch();
+    }
   });
   searchBox.appendChild(searchInput);
 
@@ -216,7 +273,15 @@ function renderBookCard(book: Book): HTMLElement {
   }
 
   const meta = el('div', 'book-meta');
-  meta.appendChild(el('div', 'book-title', book.title));
+  const titleLine = el('div', 'book-title-line');
+  if (book.category?.color) {
+    const dot = el('span', 'cat-dot');
+    dot.style.background = book.category.color;
+    dot.title = book.category.name;
+    titleLine.appendChild(dot);
+  }
+  titleLine.appendChild(el('div', 'book-title', book.title));
+  meta.appendChild(titleLine);
   meta.appendChild(el('div', 'book-author', authorText(book)));
   if (book.ratingAverage != null) {
     const rating = el('div', 'book-rating');
@@ -284,14 +349,13 @@ function doubanPanel(): HTMLElement {
   wrap.appendChild(results);
 
   // 预览面板（点击某条结果后展示完整详情）
-  const previewBox = el('div', 'preview-panel');
-  previewBox.style.display = 'none';
+  const previewBox = el('div');
   wrap.appendChild(previewBox);
 
   const doSearch = async () => {
     const q = input.value.trim();
     if (!q) return toast('请输入搜索内容', 'error');
-    previewBox.style.display = 'none';
+    previewBox.innerHTML = '';
     results.innerHTML = '';
     results.appendChild(loadingElement('正在向豆瓣请求…'));
     try {
@@ -341,7 +405,6 @@ function doubanResultItem(item: DoubanSearchResult, previewBox: HTMLElement): HT
     previewBtn.textContent = '加载中…';
     try {
       const detail = await api.doubanPreview({ id: item.id });
-      previewBox.style.display = 'grid';
       previewBox.innerHTML = '';
       previewBox.appendChild(renderPreview(detail, item));
     } catch (e: any) {
@@ -386,6 +449,7 @@ function renderPreview(detail: Record<string, unknown>, item: DoubanSearchResult
 
   const info = el('div', 'pv-info');
   const title = el('div', 'pv-title', String(detail.title ?? item.title));
+  info.appendChild(title);
   const metaParts: string[] = [];
   if (Array.isArray(detail.authors) && detail.authors.length) metaParts.push((detail.authors as string[]).join(' / '));
   if (detail.publisher) metaParts.push(`出版社：${detail.publisher}`);
@@ -401,7 +465,6 @@ function renderPreview(detail: Record<string, unknown>, item: DoubanSearchResult
     info.appendChild(el('div', 'pv-summary', String(detail.summary).slice(0, 300)));
   }
   const hint = el('div', 'pv-hint', '确认无误后，点「保存到书架」即可入库（会自动下载封面）。');
-  hint.style.cssText = 'margin-top:6px;font-size:12px;color:var(--ink-faint);';
   info.appendChild(hint);
 
   panel.append(cover, info);
@@ -537,9 +600,41 @@ function renderDetailContent(body: HTMLElement, book: Book, close: () => void): 
   body.innerHTML = '';
   const detail = el('div', 'book-detail');
 
-  // 封面
+  // 封面（缺失或加载失败时点击可重新下载）
   const coverCell = el('div');
-  coverCell.appendChild(coverBlock(book, 'detail-cover'));
+  const hasCoverSource = !!(book.coverUrl || book.doubanId || book.isbn13 || book.isbn10);
+  let retryArmed = false;
+  function armCoverRetry(): void {
+    if (!hasCoverSource || retryArmed) return;
+    retryArmed = true;
+    coverBox.classList.add('cover-retry');
+    coverBox.title = '点击重新下载封面';
+    coverBox.addEventListener('click', onCoverRetry);
+  }
+  async function onCoverRetry(): Promise<void> {
+    if (coverBox.dataset.retrying) return;
+    coverBox.dataset.retrying = '1';
+    coverBox.classList.add('cover-retrying');
+    coverBox.innerHTML = '';
+    coverBox.appendChild(el('span', 'cover-fallback', '⏳'));
+    try {
+      await api.retryCover(book.id);
+      toast('封面下载成功', 'success');
+      const updated = await api.getBook(book.id);
+      renderDetailContent(body, updated, close);
+      renderShelf();
+    } catch (e: any) {
+      toast(e.message || '封面下载失败', 'error');
+      coverBox.dataset.retrying = '';
+      coverBox.classList.remove('cover-retrying');
+      coverBox.innerHTML = '';
+      coverBox.appendChild(placeholderIcon());
+    }
+  }
+  const coverBox = coverBlock(book, 'detail-cover', () => armCoverRetry());
+  coverCell.appendChild(coverBox);
+  // 本地与豆瓣都没有封面地址时，封面块直接进入可重试状态
+  if (!coverUrl(book)) armCoverRetry();
 
   // 信息区
   const info = el('div', 'detail-info');
@@ -549,7 +644,7 @@ function renderDetailContent(body: HTMLElement, book: Book, close: () => void): 
   if (book.subtitle) title.append(el('span', 'detail-subtitle', book.subtitle));
   titleLine.appendChild(title);
 
-  const authorLine = el('div', 'detail-author', authorText(book));
+  const authorLine = el('div', 'detail-authors', authorText(book));
   const metaLine = el('div', 'detail-meta');
   const chips: string[] = [];
   if (book.publisher) chips.push(`📕 ${book.publisher}`);
@@ -560,26 +655,98 @@ function renderDetailContent(body: HTMLElement, book: Book, close: () => void): 
   metaLine.innerHTML = chips.map((c) => `<span class="meta-chip">${esc(c)}</span>`).join('');
 
   // 评分（豆瓣 + 我的）——我的评分取自最新带评分的书评
-  const myRating = book.reviews?.find((r) => r.rating != null)?.rating ?? 0;
+  const myRating =
+    [...(book.reviews ?? [])]
+      .filter((r) => r.rating != null)
+      .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))[0]?.rating ?? 0;
   const ratingLine = el('div', 'detail-ratings');
+  // 「我的评分」为实时元素：书评表单选择星级时会同步更新这里
+  const myRatingBox = el('span', 'my-rating');
+  const updateMyRating = (v: number) => {
+    myRatingBox.textContent = `我的评分 ${starsIcon(v)}`;
+  };
+  updateMyRating(myRating);
   if (book.ratingAverage != null) {
-    ratingLine.innerHTML =
-      `<span class="db-rating">★ ${fmtRating(book.ratingAverage)}<small>豆瓣</small></span>` +
-      `<span class="my-rating">我的评分 ${starsIcon(myRating)}</span>`;
+    const dbRating = el('span', 'db-rating');
+    dbRating.innerHTML = `★ ${fmtRating(book.ratingAverage)}<small>豆瓣</small>`;
+    ratingLine.appendChild(dbRating);
   }
+  ratingLine.appendChild(myRatingBox);
 
-  // 分类
-  if (book.category) {
-    const catLine = el('div', 'detail-category');
-    catLine.innerHTML = `<span class="dot" style="background:${esc(book.category.color)}"></span>${esc(book.category.name)}`;
-    info.appendChild(catLine);
-  }
+  // 分类（仅限系统已有分类，可下拉设定/改为未分类）
+  const catLine = el('div', 'detail-category');
+  catLine.appendChild(el('span', 'tags-label', '分类：'));
+  const dot = el('span', 'dot');
+  const select = el('select', 'category-select');
+  const noneOpt = el('option', undefined, '未分类');
+  noneOpt.value = '';
+  select.appendChild(noneOpt);
+  select.disabled = true; // 等分类列表加载完成后再开放
+  const applyDot = (cats: Category[]) => {
+    const cat = cats.find((c) => c.id === Number(select.value)) ?? null;
+    dot.style.background = cat?.color ?? 'transparent';
+    dot.title = cat?.name ?? '';
+  };
+  api.listCategories().then(
+    (cats) => {
+      for (const c of cats) {
+        const opt = el('option', undefined, c.name);
+        opt.value = String(c.id);
+        select.appendChild(opt);
+      }
+      select.value = book.category ? String(book.category.id) : '';
+      applyDot(cats);
+      select.disabled = false;
+    },
+    () => {
+      select.disabled = false; // 加载失败时仅提供「未分类」选项
+    }
+  );
+  select.addEventListener('change', async () => {
+    const nextId = select.value ? Number(select.value) : null;
+    const curId = book.category?.id ?? null;
+    if (nextId === curId) return;
+    select.disabled = true;
+    try {
+      await api.setCategory(book.id, nextId);
+      toast(nextId ? '分类已设定' : '已设为未分类', 'success');
+      const updated = await api.getBook(book.id);
+      renderDetailContent(body, updated, close);
+      renderShelf();
+    } catch (e: any) {
+      select.disabled = false;
+      select.value = curId ? String(curId) : '';
+      toast(e.message || '设定分类失败', 'error');
+    }
+  });
+  catLine.append(dot, select);
+  info.appendChild(catLine);
 
-  // 标签（可编辑）
+  // 标签（可编辑 / 可移除）
   const tagsBox = el('div', 'detail-tags');
   tagsBox.appendChild(el('span', 'tags-label', '标签：'));
   for (const t of book.tags ?? []) {
-    tagsBox.appendChild(tagChip(t.name));
+    const chip = tagChip(t.name);
+    chip.classList.add('removable');
+    const rm = el('button', 'chip-remove', '×');
+    rm.title = `移除标签「${t.name}」`;
+    rm.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      rm.disabled = true;
+      try {
+        const remaining = (book.tags ?? []).filter((x) => x.id !== t.id).map((x) => x.name);
+        await api.setTags(book.id, remaining);
+        toast('标签已删除', 'success');
+        const updated = await api.getBook(book.id);
+        renderDetailContent(body, updated, close);
+        renderShelf();
+      } catch (e: any) {
+        rm.disabled = false;
+        toast(e.message || '删除标签失败', 'error');
+      }
+    });
+    chip.appendChild(rm);
+    tagsBox.appendChild(chip);
   }
   const addTagBtn = el('button', 'tag-add', '＋');
   addTagBtn.title = '添加标签';
@@ -677,14 +844,6 @@ function renderDetailContent(body: HTMLElement, book: Book, close: () => void): 
 
   // 添加书评
   const reviewForm = el('div', 'review-form');
-  const myRatingBox = el('span', 'my-rating');
-  const updateMyRating = (v: number) => {
-    myRatingBox.innerHTML = `我的评分 ${starsIcon(v)}`;
-  };
-  updateMyRating(myRating);
-  if (book.ratingAverage != null) {
-    ratingLine.innerHTML += ` ${myRatingBox.outerHTML}`;
-  }
   let selectedRating = 0;
   const stars = starsComponent(0, (v) => {
     selectedRating = v;
@@ -709,21 +868,15 @@ function renderDetailContent(body: HTMLElement, book: Book, close: () => void): 
   reviewBox.appendChild(reviewForm);
   info.appendChild(reviewBox);
 
-  detail.append(coverCell, info);
-  body.appendChild(detail);
-
-  // 底部操作
-  const footer = el('div');
-  footer.style.display = 'flex';
-  footer.style.gap = '10px';
-  footer.style.flexWrap = 'wrap';
+  // 底部操作（编辑 / 删除）——渲染在详情内容最下方
+  // 注：详情弹窗未使用 openModal 的 footer，故直接追加到 detail 内容底部
+  const footer = el('div', 'detail-footer');
   const editBtn = el('button', 'btn', '✏️ 编辑信息');
   editBtn.addEventListener('click', () => openEditBook(book, close));
   const deleteBtn = el('button', 'btn btn-danger', '🗑 删除书籍');
   deleteBtn.addEventListener('click', () => confirmDelete(book, close));
   footer.append(editBtn, deleteBtn);
-  const footerWrap = body.parentElement?.querySelector('.modal-footer');
-  if (footerWrap) footerWrap.appendChild(footer);
+  detail.appendChild(footer);
 }
 
 function starsIcon(v: number): string {
@@ -786,7 +939,7 @@ function promptBorrow(book: Book, closeDetail?: () => void): void {
   nameInput.focus();
 }
 
-/** 选择/输入标签。返回选中的标签名数组（空数组表示不变更） */
+/** 选择/输入标签。返回选中的标签名数组（null 表示取消，空数组表示清除全部标签） */
 async function promptAddTag(book: Book): Promise<string[] | null> {
   const current = new Set((book.tags ?? []).map((t) => t.name));
   const wrap = el('div');
@@ -999,6 +1152,36 @@ function lendingsSection(title: string, list: Lending[], isHistory: boolean): HT
  * 标签管理视图
  * ============================================================ */
 
+/** 弹窗展示某标签/分类下的全部书籍（书名可点击进入详情卡片） */
+async function openBooksByFilter(title: string, query: BookQuery): Promise<void> {
+  const body = el('div');
+  openModal({ title, body, size: 'medium' });
+  body.appendChild(loadingElement('正在加载书籍…'));
+  try {
+    const books = await api.listBooks(query);
+    body.innerHTML = '';
+    if (books.length === 0) {
+      body.appendChild(el('p', 'empty-state', '这里暂时没有书籍。'));
+      return;
+    }
+    const list = el('div', 'book-list');
+    for (const b of books) {
+      const row = el('div', 'book-list-item');
+      const titleBtn = el('button', 'book-list-title', b.title);
+      titleBtn.addEventListener('click', () => openBookDetail(b.id));
+      row.append(
+        titleBtn,
+        el('span', 'book-list-author', authorText(b)),
+        el('span', 'book-list-publisher', b.publisher || '—'),
+      );
+      list.appendChild(row);
+    }
+    body.appendChild(list);
+  } catch (e: any) {
+    body.innerHTML = `<div class="empty-state" style="padding:40px 0;"><span class="empty-icon">⚠️</span><p>${esc(e.message || e)}</p></div>`;
+  }
+}
+
 async function renderTags(): Promise<void> {
   appEl().innerHTML = '';
   appEl().appendChild(loadingElement('正在加载标签…'));
@@ -1018,7 +1201,16 @@ async function renderTags(): Promise<void> {
         const item = el('div', 'meta-item');
         const left = el('div', 'meta-left');
         const name = el('span', 'tag-chip', t.name);
-        left.append(name, el('span', 'meta-count', `${t.bookCount} 本书`));
+        const bookCount = t.bookCount ?? 0;
+        const countEl = el('span', 'meta-count', `${bookCount} 本书`);
+        if (bookCount > 0) {
+          countEl.classList.add('clickable');
+          countEl.title = `查看「${t.name}」下的全部书籍`;
+          countEl.addEventListener('click', () =>
+            openBooksByFilter(`标签「${t.name}」下的书籍`, { tagId: t.id })
+          );
+        }
+        left.append(name, countEl);
         const delBtn = el('button', 'btn-link danger', '删除');
         delBtn.addEventListener('click', async () => {
           if (!confirm(`确定删除标签「${t.name}」？书籍会保留，只是移除该标签。`)) return;
@@ -1065,7 +1257,16 @@ async function renderCategories(): Promise<void> {
       const left = el('div', 'meta-left');
       const swatch = el('span', 'dot');
       swatch.style.background = c.color;
-      left.append(swatch, el('span', 'meta-name', c.name), el('span', 'meta-count', `${c.bookCount} 本书`));
+      const bookCount = c.bookCount ?? 0;
+      const countEl = el('span', 'meta-count', `${bookCount} 本书`);
+      if (bookCount > 0) {
+        countEl.classList.add('clickable');
+        countEl.title = `查看「${c.name}」下的全部书籍`;
+        countEl.addEventListener('click', () =>
+          openBooksByFilter(`分类「${c.name}」下的书籍`, { categoryId: c.id })
+        );
+      }
+      left.append(swatch, el('span', 'meta-name', c.name), countEl);
       const renameBtn = el('button', 'btn-link', '重命名');
       renameBtn.addEventListener('click', () => promptRenameCategory(c));
       const delBtn = el('button', 'btn-link danger', '删除');

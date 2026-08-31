@@ -104,21 +104,24 @@ export function openModal(opts: ModalOptions): () => void {
 export function starsComponent(value: number, onRate?: (v: number) => void): HTMLElement {
   const wrap = el('span', 'stars');
   if (!onRate) wrap.classList.add('readonly');
+  // 当前选中的星级（初始为 value）；点击后持久化，鼠标离开时恢复选中态而非初始值
+  let selected = Math.round(value);
+  const setStars = (n: number) => {
+    wrap.querySelectorAll('.star').forEach((st, idx) => {
+      st.classList.toggle('on', idx < n);
+    });
+  };
   for (let i = 1; i <= 5; i++) {
     const s = el('span', 'star', '★');
     if (value >= i - 0.25) s.classList.add('on');
     if (onRate) {
-      s.addEventListener('click', () => onRate(i));
-      s.addEventListener('mouseenter', () => {
-        wrap.querySelectorAll('.star').forEach((st, idx) => {
-          st.classList.toggle('on', idx < i);
-        });
+      s.addEventListener('click', () => {
+        selected = i;
+        setStars(i);
+        onRate(i);
       });
-      s.addEventListener('mouseleave', () => {
-        wrap.querySelectorAll('.star').forEach((st, idx) => {
-          st.classList.toggle('on', idx < Math.round(value));
-        });
-      });
+      s.addEventListener('mouseenter', () => setStars(i));
+      s.addEventListener('mouseleave', () => setStars(selected));
     }
     wrap.appendChild(s);
   }

@@ -116,6 +116,12 @@ export interface BookQuery {
   status?: BookStatus;
   limit?: number;
   offset?: number;
+  /** 仅返回有书评的书籍 */
+  hasReview?: boolean;
+  /** 仅返回有至少一个标签的书籍 */
+  hasTag?: boolean;
+  /** 仅返回已分类（非未分类）的书籍 */
+  hasCategory?: boolean;
 }
 
 /** 豆瓣搜索结果条目 */

@@ -1,11 +1,16 @@
 {
   "name": "papyrus",
   "version": "1.0.0",
+  "private": true,
   "description": "Papyrus —— 纯 TypeScript 个人书籍管理系统（豆瓣数据源 + SQLite 本地存储）",
   "type": "module",
   "main": "dist/server/index.js",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "dev": "tsx watch src/server/index.ts",
+    "dev": "node scripts/dev.mjs",
+    "dev:client": "esbuild src/frontend/main.ts --bundle --sourcemap --watch=forever --outfile=public/app.js",
     "build:server": "tsc -p tsconfig.server.json",
     "build:client": "esbuild src/frontend/main.ts --bundle --minify --outfile=public/app.js",
     "build": "npm run build:client && npm run build:server",

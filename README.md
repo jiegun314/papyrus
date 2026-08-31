@@ -141,7 +141,8 @@ papyrus/
 
 ```bash
 npm run typecheck   # 前后端类型检查
-npm run build:client  # esbuild 打包前端 → public/app.js + app.css
+npm run dev:client  # 仅前端监听打包（esbuild --watch，改动自动重建 public/app.js）
+npm run build:client  # 一次性打包前端 → public/app.js + app.css
 npm run build:server  # tsc 编译后端 → dist/
 npm run build       # 二者全做
 ```

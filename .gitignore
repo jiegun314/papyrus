@@ -3,6 +3,7 @@ node_modules/
 dist/
 public/app.js
 public/app.css
+public/*.map
 data/*.db
 data/*.db-journal
 data/*.db-wal

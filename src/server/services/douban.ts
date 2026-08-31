@@ -226,7 +226,10 @@ export async function resolveIsbnToSubjectId(isbn: string): Promise<string | nul
   const clean = isbn.replace(/[^0-9Xx]/g, '').toUpperCase();
   if (!clean) throw new Error('ISBN 格式不正确');
   const res = await throttledFetch(`${BASE}/isbn/${clean}/`);
-  // 跟随 302 之后，最终 URL 形如 https://book.douban.com/subject/26800533/
+  if (res.status === 403) throw new Error('豆瓣拒绝了请求（403），可能触发了反爬，请稍后再试');
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`豆瓣请求失败：HTTP ${res.status}`);
+  // 跟随跳转之后，最终 URL 形如 https://book.douban.com/subject/26800533/
   const finalUrl = res.url || '';
   const m = finalUrl.match(/\/subject\/(\d+)\/?$/);
   if (m) return m[1];
@@ -247,6 +250,28 @@ export async function fetchBookByIsbn(isbn: string) {
 export async function searchDouban(query: string): Promise<DoubanSearchResult[]> {
   const q = query.trim();
   if (!q) return [];
+
+  // ISBN 直达：联想接口（j/subject_suggest）只索引书名/作者，不索引 ISBN，
+  // 因此命中 ISBN 格式时改走 /isbn/{isbn}/ 的跳转解析，抓取详情后返回单条结果。
+  const isbn = q.replace(/[^0-9Xx]/g, '').toUpperCase();
+  if (/^(?:\d{9}[\dX]|\d{13})$/.test(isbn)) {
+    const subjectId = await resolveIsbnToSubjectId(isbn);
+    if (!subjectId) throw new Error(`豆瓣上找不到 ISBN ${isbn} 对应的书籍`);
+    const detail = await fetchBookDetail(subjectId);
+    return [
+      {
+        id: detail.doubanId,
+        title: String(detail.title || q),
+        subtitle: typeof detail.subtitle === 'string' && detail.subtitle ? detail.subtitle : undefined,
+        authors: Array.isArray(detail.authors) && detail.authors.length ? (detail.authors as string[]).join(' / ') : undefined,
+        url: String(detail.doubanUrl || `${BASE}/subject/${detail.doubanId}/`),
+        image: String(detail.coverUrl || ''),
+        year: typeof detail.pubdate === 'string' ? detail.pubdate : undefined,
+        isbn,
+      },
+    ];
+  }
+
   const url = `${BASE}/j/subject_suggest?q=${encodeURIComponent(q)}`;
   const res = await throttledFetch(url);
   if (!res.ok) throw new Error(`豆瓣搜索失败：HTTP ${res.status}`);
