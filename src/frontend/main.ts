@@ -283,9 +283,15 @@ function doubanPanel(): HTMLElement {
   const results = el('div', 'douban-results');
   wrap.appendChild(results);
 
+  // 预览面板（点击某条结果后展示完整详情）
+  const previewBox = el('div', 'preview-panel');
+  previewBox.style.display = 'none';
+  wrap.appendChild(previewBox);
+
   const doSearch = async () => {
     const q = input.value.trim();
     if (!q) return toast('请输入搜索内容', 'error');
+    previewBox.style.display = 'none';
     results.innerHTML = '';
     results.appendChild(loadingElement('正在向豆瓣请求…'));
     try {
@@ -295,7 +301,7 @@ function doubanPanel(): HTMLElement {
         results.innerHTML = `<div class="empty-state" style="padding:40px 0;"><span class="empty-icon">📭</span><p>没有找到相关图书，换个关键词试试</p></div>`;
         return;
       }
-      for (const item of list) results.appendChild(doubanResultItem(item));
+      for (const item of list) results.appendChild(doubanResultItem(item, previewBox));
     } catch (e: any) {
       results.innerHTML = '';
       results.innerHTML = `<div class="empty-state" style="padding:40px 0;"><span class="empty-icon">⚠️</span><p>${esc(e.message || e)}</p></div>`;
@@ -314,7 +320,7 @@ function doubanPanel(): HTMLElement {
 }
 
 /** 单个豆瓣搜索结果条目 */
-function doubanResultItem(item: DoubanSearchResult): HTMLElement {
+function doubanResultItem(item: DoubanSearchResult, previewBox: HTMLElement): HTMLElement {
   const row = el('div', 'douban-item');
   row.innerHTML = `
     <img src="${esc(item.image)}" alt="" onerror="this.style.visibility='hidden'" />
@@ -323,9 +329,29 @@ function doubanResultItem(item: DoubanSearchResult): HTMLElement {
       <div class="db-meta">${esc(item.authors ?? '')}${item.year ? ` · ${esc(item.year)}` : ''}${item.isbn ? ` · ISBN ${esc(item.isbn)}` : ''}</div>
     </div>
     <div class="db-actions">
+      <button class="btn btn-sm">预览</button>
       <button class="btn btn-sm btn-primary">保存到书架</button>
     </div>`;
-  const saveBtn = row.querySelector('button')!;
+
+  const [previewBtn, saveBtn] = row.querySelectorAll('button');
+
+  // 预览：抓取完整详情展示（不保存）
+  previewBtn.addEventListener('click', async () => {
+    previewBtn.disabled = true;
+    previewBtn.textContent = '加载中…';
+    try {
+      const detail = await api.doubanPreview({ id: item.id });
+      previewBox.style.display = 'grid';
+      previewBox.innerHTML = '';
+      previewBox.appendChild(renderPreview(detail, item));
+    } catch (e: any) {
+      toast(e.message || '预览失败', 'error');
+    } finally {
+      previewBtn.disabled = false;
+      previewBtn.textContent = '预览';
+    }
+  });
+
   saveBtn.addEventListener('click', async () => {
     saveBtn.disabled = true;
     saveBtn.textContent = '保存中…';
@@ -341,6 +367,45 @@ function doubanResultItem(item: DoubanSearchResult): HTMLElement {
     }
   });
   return row;
+}
+
+/** 渲染豆瓣详情预览面板 */
+function renderPreview(detail: Record<string, unknown>, item: DoubanSearchResult): HTMLElement {
+  const panel = el('div', 'preview-panel');
+  const cover = el('div', 'pv-cover');
+  const imgUrl = (detail.coverUrl as string) || item.image;
+  if (imgUrl) {
+    const img = el('img');
+    img.src = imgUrl;
+    img.alt = String(detail.title ?? item.title);
+    img.addEventListener('error', () => (cover.innerHTML = '📖'));
+    cover.appendChild(img);
+  } else {
+    cover.textContent = '📖';
+  }
+
+  const info = el('div', 'pv-info');
+  const title = el('div', 'pv-title', String(detail.title ?? item.title));
+  const metaParts: string[] = [];
+  if (Array.isArray(detail.authors) && detail.authors.length) metaParts.push((detail.authors as string[]).join(' / '));
+  if (detail.publisher) metaParts.push(`出版社：${detail.publisher}`);
+  if (detail.pubdate) metaParts.push(detail.pubdate as string);
+  if (detail.price) metaParts.push(`定价：${detail.price}`);
+  if (detail.pages) metaParts.push(`${detail.pages} 页`);
+  if (detail.isbn13) metaParts.push(`ISBN ${detail.isbn13}`);
+  info.appendChild(el('div', 'pv-meta', metaParts.join(' · ')));
+  if (detail.ratingAverage != null) {
+    info.appendChild(el('div', 'pv-rating', `★ ${fmtRating(detail.ratingAverage as number)}${detail.ratingCount ? `（${detail.ratingCount} 人评价）` : ''}`));
+  }
+  if (detail.summary) {
+    info.appendChild(el('div', 'pv-summary', String(detail.summary).slice(0, 300)));
+  }
+  const hint = el('div', 'pv-hint', '确认无误后，点「保存到书架」即可入库（会自动下载封面）。');
+  hint.style.cssText = 'margin-top:6px;font-size:12px;color:var(--ink-faint);';
+  info.appendChild(hint);
+
+  panel.append(cover, info);
+  return panel;
 }
 
 // 保存最近的弹窗关闭函数，用于“保存到书架”成功后关闭添加弹窗
