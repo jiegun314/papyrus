@@ -9,7 +9,7 @@ function toQueryString(query: BookQuery): string {
   if (query.keyword) params.set('keyword', query.keyword);
   if (query.categoryId != null) params.set('categoryId', String(query.categoryId));
   if (query.tagId != null) params.set('tagId', String(query.tagId));
-  if (query.status) params.set('status', query.status);
+  if (query.readingStatus) params.set('readingStatus', query.readingStatus);
   if (query.hasReview) params.set('hasReview', 'true');
   if (query.hasTag) params.set('hasTag', 'true');
   if (query.hasCategory) params.set('hasCategory', 'true');
@@ -60,19 +60,6 @@ export function setCategory(id: number, categoryId: number | null): Promise<Book
     method: 'POST',
     body: JSON.stringify({ categoryId }),
   });
-}
-
-/** 借出 */
-export function borrowBook(id: number, borrower: string, note?: string): Promise<Book> {
-  return request<Book>(`/api/books/${id}/borrow`, {
-    method: 'POST',
-    body: JSON.stringify({ borrower, note }),
-  });
-}
-
-/** 归还 */
-export function returnBook(id: number): Promise<Book> {
-  return request<Book>(`/api/books/${id}/return`, { method: 'POST' });
 }
 
 /** 新增书评 */

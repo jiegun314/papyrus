@@ -1,12 +1,12 @@
 /**
  * server/routes/meta.ts
  * ------------------------------------------------------------------
- * 分类、标签、借阅记录、统计信息 API。
+ * 分类、标签、统计信息 API。
  */
 import { Router } from 'express';
 import {
   listCategories, createCategory, updateCategory, deleteCategory,
-  listTags, deleteTag, listLendings, getStats,
+  listTags, deleteTag, getStats,
 } from '../services/bookService.js';
 
 export const metaRouter = Router();
@@ -66,15 +66,6 @@ metaRouter.delete('/tags/:id', (req, res) => {
   const id = Number(req.params.id);
   if (!deleteTag(id)) return res.status(404).json({ error: '标签不存在' });
   res.json({ ok: true });
-});
-
-/* ---------- 借阅记录 ---------- */
-
-// GET /api/lendings?status=borrowed|returned
-metaRouter.get('/lendings', (req, res) => {
-  const status = req.query.status;
-  const s = status === 'borrowed' || status === 'returned' ? status : undefined;
-  res.json(listLendings(s));
 });
 
 /* ---------- 统计 ---------- */

@@ -1,32 +1,34 @@
 /**
  * server/routes/books.ts
  * ------------------------------------------------------------------
- * 书籍相关 API：增删改查、标签、归类、借出/归还、书评。
+ * 书籍相关 API：增删改查、标签、归类、阅读状态、书评。
  */
 import { Router } from 'express';
 import {
   listBooks, getBook, createBook, updateBook, deleteBook,
-  setBookTags, setBookCategory, setBookCoverPath, borrowBook, returnBook,
+  setBookTags, setBookCategory, setBookCoverPath,
   addReview, updateReview, deleteReview,
 } from '../services/bookService.js';
 import { downloadCover } from '../services/cover.js';
 import { fetchBookDetail, fetchBookByIsbn } from '../services/douban.js';
-import type { BookInput } from '../../shared/types.js';
+import type { BookInput, ReadingStatus } from '../../shared/types.js';
 
 export const booksRouter = Router();
 
 /* ---------- 列表 ---------- */
 
-// GET /api/books?keyword=&categoryId=&tagId=&status=&hasReview=&hasTag=&hasCategory=&limit=&offset=
+// GET /api/books?keyword=&categoryId=&tagId=&readingStatus=&hasReview=&hasTag=&hasCategory=&limit=&offset=
 booksRouter.get('/', (req, res) => {
-  const { keyword, categoryId, tagId, status, limit, offset } = req.query;
+  const { keyword, categoryId, tagId, readingStatus, limit, offset } = req.query;
   const bool = (v: unknown): boolean | undefined =>
     v === 'true' || v === '1' ? true : v === 'false' || v === '0' ? false : undefined;
+  const isReadingStatus = (v: unknown): v is ReadingStatus =>
+    v === 'unread' || v === 'reading' || v === 'read' || v === 'abandoned';
   const books = listBooks({
     keyword: typeof keyword === 'string' ? keyword : undefined,
     categoryId: categoryId ? Number(categoryId) : undefined,
     tagId: tagId ? Number(tagId) : undefined,
-    status: status === 'in' || status === 'out' ? status : undefined,
+    readingStatus: isReadingStatus(readingStatus) ? readingStatus : undefined,
     hasReview: bool(req.query.hasReview),
     hasTag: bool(req.query.hasTag),
     hasCategory: bool(req.query.hasCategory),
@@ -99,32 +101,6 @@ booksRouter.post('/:id/category', (req, res) => {
   const book = setBookCategory(id, cat);
   if (!book) return res.status(404).json({ error: '书籍不存在' });
   res.json(book);
-});
-
-/* ---------- 借出 / 归还 ---------- */
-
-// POST /api/books/:id/borrow  body: { borrower, note }
-booksRouter.post('/:id/borrow', (req, res) => {
-  const id = Number(req.params.id);
-  const borrower = req.body?.borrower?.trim();
-  if (!borrower) return res.status(400).json({ error: '请填写借阅人姓名' });
-  try {
-    const book = borrowBook(id, borrower, req.body?.note);
-    res.json(book);
-  } catch (e: any) {
-    res.status(400).json({ error: e.message || '借出失败' });
-  }
-});
-
-// POST /api/books/:id/return
-booksRouter.post('/:id/return', (req, res) => {
-  const id = Number(req.params.id);
-  try {
-    const book = returnBook(id);
-    res.json(book);
-  } catch (e: any) {
-    res.status(400).json({ error: e.message || '归还失败' });
-  }
 });
 
 /* ---------- 封面 ---------- */

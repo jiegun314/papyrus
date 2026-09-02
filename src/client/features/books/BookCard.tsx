@@ -4,13 +4,14 @@
 import type { Book } from '../../../shared/types';
 import { Cover } from '../../components/Cover';
 import { authorText, fmtRating } from '../../lib/format';
+import { READING_STATUS_TEXT } from '../../lib/readingStatus';
 
 export function BookCard({ book, onOpen }: { book: Book; onOpen: (id: number) => void }) {
   return (
     <button type="button" className="book-card" onClick={() => onOpen(book.id)}>
       <Cover className="book-cover" url={book.coverPath} alt={book.title}>
-        <span className={`status-badge${book.status === 'in' ? ' in' : ''}`}>
-          {book.status === 'out' ? '借出' : '在架'}
+        <span className={`reading-badge ${book.readingStatus}`}>
+          {READING_STATUS_TEXT[book.readingStatus]}
         </span>
       </Cover>
       <div className="book-meta">

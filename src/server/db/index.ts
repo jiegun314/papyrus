@@ -29,9 +29,86 @@ export function getDb(): Database.Database {
   db.pragma('journal_mode = WAL'); // 并发读写更安全
   db.pragma('foreign_keys = ON');  // 启用外键级联删除
   db.exec(SCHEMA_SQL);
+  migrate(db); // 旧库结构升级（借出状态 → 阅读状态）
 
   seedCategories(db);
   return db;
+}
+
+/**
+ * 结构迁移：把旧版本数据库升级到当前 schema。
+ *
+ * v1 → v2（阅读状态取代借出状态）：
+ *   1. 删除 lendings 借阅记录表（借出 / 归还功能已移除）；
+ *   2. books.status('in'|'out') 列替换为 reading_status
+ *      （'unread'|'reading'|'read'|'abandoned'）。SQLite 无法直接改写列的
+ *      CHECK 约束，因此采用「重建表」方式迁移；旧书无阅读进度数据，一律置为 'unread'。
+ */
+function migrate(db: Database.Database): void {
+  db.exec('DROP TABLE IF EXISTS lendings');
+
+  const cols = db.prepare('PRAGMA table_info(books)').all() as { name: string }[];
+  if (!cols.some((c) => c.name === 'reading_status')) {
+    const fkOn = db.pragma('foreign_keys', { simple: true }) === 1;
+    db.pragma('foreign_keys = OFF'); // 关闭外键，重建 books 时不级联破坏 book_tags / reviews
+    try {
+      const rebuild = db.transaction(() => {
+        db.exec(`
+          CREATE TABLE books_new (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            douban_id      TEXT UNIQUE,
+            isbn13         TEXT,
+            isbn10         TEXT,
+            title          TEXT NOT NULL,
+            subtitle       TEXT,
+            original_title TEXT,
+            authors        TEXT NOT NULL DEFAULT '[]',
+            publisher      TEXT,
+            pubdate        TEXT,
+            price          TEXT,
+            pages          INTEGER,
+            binding        TEXT,
+            series         TEXT,
+            summary        TEXT,
+            author_intro   TEXT,
+            catalog        TEXT,
+            cover_url      TEXT,
+            cover_path     TEXT,
+            rating_average REAL,
+            rating_count   INTEGER,
+            douban_url     TEXT,
+            category_id    INTEGER REFERENCES categories(id) ON DELETE SET NULL,
+            reading_status TEXT NOT NULL DEFAULT 'unread' CHECK (reading_status IN ('unread','reading','read','abandoned')),
+            notes          TEXT,
+            created_at     TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+            updated_at     TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+          );
+          INSERT INTO books_new (
+            id, douban_id, isbn13, isbn10, title, subtitle, original_title, authors,
+            publisher, pubdate, price, pages, binding, series, summary, author_intro,
+            catalog, cover_url, cover_path, rating_average, rating_count, douban_url,
+            category_id, reading_status, notes, created_at, updated_at
+          )
+          SELECT
+            id, douban_id, isbn13, isbn10, title, subtitle, original_title, authors,
+            publisher, pubdate, price, pages, binding, series, summary, author_intro,
+            catalog, cover_url, cover_path, rating_average, rating_count, douban_url,
+            category_id, 'unread', notes, created_at, updated_at
+          FROM books;
+          DROP TABLE books;
+          ALTER TABLE books_new RENAME TO books;
+        `);
+        // 旧表删除后原索引一并消失，重新执行建表脚本恢复（title / isbn / category）
+        db.exec(SCHEMA_SQL);
+      });
+      rebuild();
+    } finally {
+      db.pragma(`foreign_keys = ${fkOn ? 'ON' : 'OFF'}`);
+    }
+  }
+
+  // 阅读状态筛选索引（每次启动都会确保存在）
+  db.exec('CREATE INDEX IF NOT EXISTS idx_books_reading_status ON books(reading_status)');
 }
 
 /** 首次运行写入默认分类 */
@@ -79,7 +156,7 @@ export function rowToBook(row: Record<string, unknown>): any {
     ratingCount: row.rating_count ?? null,
     doubanUrl: row.douban_url ?? null,
     categoryId: row.category_id ?? null,
-    status: row.status,
+    readingStatus: row.reading_status ?? 'unread',
     notes: row.notes ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

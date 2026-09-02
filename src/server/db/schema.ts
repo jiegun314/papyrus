@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS books (
   rating_count   INTEGER,
   douban_url     TEXT,
   category_id    INTEGER REFERENCES categories(id) ON DELETE SET NULL,
-  status         TEXT NOT NULL DEFAULT 'in' CHECK (status IN ('in','out')),
+  reading_status TEXT NOT NULL DEFAULT 'unread' CHECK (reading_status IN ('unread','reading','read','abandoned')),
   notes          TEXT,
   created_at     TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
   updated_at     TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
@@ -74,20 +74,6 @@ CREATE TABLE IF NOT EXISTS reviews (
 );
 
 CREATE INDEX IF NOT EXISTS idx_reviews_book ON reviews(book_id);
-
--- 借阅记录表
-CREATE TABLE IF NOT EXISTS lendings (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  book_id     INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
-  borrower    TEXT NOT NULL,
-  borrowed_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
-  returned_at TEXT,
-  note        TEXT,
-  status      TEXT NOT NULL DEFAULT 'borrowed' CHECK (status IN ('borrowed','returned'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_lendings_book ON lendings(book_id);
-CREATE INDEX IF NOT EXISTS idx_lendings_status ON lendings(status);
 `;
 
 /** 默认分类（首次启动时写入） */

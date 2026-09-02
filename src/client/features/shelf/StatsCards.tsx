@@ -2,7 +2,16 @@
  * features/shelf/StatsCards.tsx —— 书架统计卡片行。
  * 数量 > 0 时可点击：标签/分类进入管理视图，其余弹出书籍清单。
  */
-import type { BookQuery, Stats } from '../../../shared/types';
+import type { BookQuery, ReadingStatus, Stats } from '../../../shared/types';
+import { READING_STATUS_OPTIONS, READING_STATUS_TEXT } from '../../lib/readingStatus';
+
+/** 每个阅读状态对应的统计数字颜色 */
+const READING_COLOR: Record<ReadingStatus, string> = {
+  unread: 'gray',
+  reading: 'teal',
+  read: 'green',
+  abandoned: 'danger',
+};
 
 export function StatsCards({
   stats,
@@ -20,8 +29,12 @@ export function StatsCards({
     action: { kind: 'list'; title: string; query: BookQuery } | { kind: 'view'; view: 'tags' | 'categories' };
   }> = [
     { label: '藏书总数', count: stats.totalBooks, action: { kind: 'list', title: '全部书籍', query: {} } },
-    { label: '在架', count: stats.inLibrary, color: 'green', action: { kind: 'list', title: '在架书籍', query: { status: 'in' } } },
-    { label: '借出', count: stats.borrowed, color: 'teal', action: { kind: 'list', title: '借出书籍', query: { status: 'out' } } },
+    ...READING_STATUS_OPTIONS.map((s) => ({
+      label: READING_STATUS_TEXT[s],
+      count: stats[s],
+      color: READING_COLOR[s],
+      action: { kind: 'list' as const, title: `${READING_STATUS_TEXT[s]}书籍`, query: { readingStatus: s } },
+    })),
     { label: '书评数', count: stats.reviewCount, action: { kind: 'list', title: '有书评的书籍', query: { hasReview: true } } },
     { label: '标签', count: stats.tagCount, action: { kind: 'view', view: 'tags' } },
     { label: '分类', count: stats.categoryCount, action: { kind: 'view', view: 'categories' } },

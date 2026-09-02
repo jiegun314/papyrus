@@ -1,6 +1,6 @@
 # 📚 Papyrus · 个人书籍管理系统
 
-> React 19 + TypeScript 的个人书架管理工具：**豆瓣元数据导入 + SQLite 本地存储 + 个人书评与借阅管理**，配一个暖色纸张质感的小清新 Web 界面。前端按功能模块化组织，后端为 Express + better-sqlite3，前后端共享 `src/shared/types.ts` 类型。
+> React 19 + TypeScript 的个人书架管理工具：**豆瓣元数据导入 + SQLite 本地存储 + 个人书评与阅读状态管理**，配一个暖色纸张质感的小清新 Web 界面。前端按功能模块化组织，后端为 Express + better-sqlite3，前后端共享 `src/shared/types.ts` 类型。
 
 ## ✨ 功能一览
 
@@ -10,13 +10,13 @@
   - 自动抓取：封面（本地缓存）、内容简介、作者简介、目录、出版社、出版年、页数、定价、豆瓣评分与评价数
   - 同一本书自动去重（按豆瓣 subject id）
 - **书架管理**
-  - 关键字搜索（书名 / 作者 / ISBN / 出版社）、分类筛选、状态筛选
+  - 关键字搜索（书名 / 作者 / ISBN / 出版社）、分类筛选、阅读状态筛选
   - 手动录入 / 编辑书籍全部字段
+- **阅读状态**：每本书可标记 **未读 / 阅读中 / 已读 / 放弃**，封面角标与书架筛选、统计一目了然
 - **个人书评**：星级评分 + 文字书评，随时增删
 - **标签系统**：给书打多个标签，支持批量在弹窗中勾选 / 新建
 - **分类系统**：自定义分类 + 颜色标识，重命名、删除
-- **借阅管理**：一键借出 / 归还，借阅人、备注、时间记录，借阅历史查询
-- **统计概览**：藏书总数、在架 / 借出、标签、分类、书评数一目了然
+- **统计概览**：藏书总数、未读 / 阅读中 / 已读 / 放弃分布、标签、分类、书评数一目了然
 
 ## 🚀 快速开始
 
@@ -65,9 +65,8 @@ papyrus/
 │       ├── components/              # 通用 UI：Modal / Toast / 评分 / 封面…
 │       ├── features/                # ★ 按功能模块化
 │       │   ├── shelf/               #   书架主页（统计卡 + 筛选栏 + 网格）
-│       │   ├── books/               #   书籍卡片 / 详情 / 表单 / 借出 / 标签
+│       │   ├── books/               #   书籍卡片 / 详情 / 表单 / 阅读状态 / 标签
 │       │   ├── douban/              #   豆瓣导入（搜索 + 预览 + 手动录入）
-│       │   ├── lendings/            #   借阅记录
 │       │   ├── tags/                #   标签管理
 │       │   └── categories/          #   分类管理
 │       ├── lib/                     # 展示格式化工具
@@ -80,7 +79,8 @@ papyrus/
 ## 🗄 数据存储
 
 - **数据库**：SQLite（`better-sqlite3`），默认 `data/papyrus.db`
-  - WAL 模式 + 外键级联（删除书籍自动清理书评 / 借阅 / 标签关联）
+  - WAL 模式 + 外键级联（删除书籍自动清理书评 / 标签关联）
+  - 启动时自动迁移旧库结构（借出状态 `status` → 阅读状态 `reading_status`）
 - **封面**：抓取豆瓣封面后下载到 `data/covers/`，通过 `/covers/*` 静态服务访问（带豆瓣 Referer 绕过防盗链）
 
 ## 📖 API 一览
@@ -91,15 +91,13 @@ papyrus/
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/api/books` | 列表，支持 `keyword` `categoryId` `tagId` `status(in\|out)` `limit` `offset` |
-| GET | `/api/books/:id` | 详情（含分类、标签、书评、当前借阅） |
+| GET | `/api/books` | 列表，支持 `keyword` `categoryId` `tagId` `readingStatus(unread\|reading\|read\|abandoned)` `limit` `offset` |
+| GET | `/api/books/:id` | 详情（含分类、标签、书评、阅读状态） |
 | POST | `/api/books` | 手动新建，body 为 `BookInput`（`title` 必填） |
-| PUT | `/api/books/:id` | 更新书籍信息 |
+| PUT | `/api/books/:id` | 更新书籍信息（含阅读状态 `readingStatus`） |
 | DELETE | `/api/books/:id` | 删除书籍（级联清理关联数据） |
 | POST | `/api/books/:id/tags` | 设置标签，body `{ tags: string[] }` |
 | POST | `/api/books/:id/category` | 设置分类，body `{ categoryId: number \| null }` |
-| POST | `/api/books/:id/borrow` | 借出，body `{ borrower, note? }` |
-| POST | `/api/books/:id/return` | 归还 |
 | POST | `/api/books/:id/reviews` | 写书评，body `{ rating?, content }` |
 | PUT | `/api/reviews/:rid` | 更新书评 |
 | DELETE | `/api/reviews/:rid` | 删除书评 |
@@ -122,7 +120,6 @@ papyrus/
 | DELETE | `/api/categories/:id` | 删除分类（书籍变为未分类） |
 | GET | `/api/tags` | 标签列表（含各标签书籍数） |
 | DELETE | `/api/tags/:id` | 删除标签 |
-| GET | `/api/lendings?status=borrowed\|returned` | 借阅记录 |
 | GET | `/api/stats` | 统计概览 |
 
 ## 🌐 豆瓣数据源说明

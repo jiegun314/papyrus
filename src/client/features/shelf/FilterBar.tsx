@@ -1,10 +1,11 @@
 /**
- * features/shelf/FilterBar.tsx —— 书架筛选栏（搜索 + 分类 + 状态）。
+ * features/shelf/FilterBar.tsx —— 书架筛选栏（搜索 + 分类 + 阅读状态）。
  * 搜索输入内置 350ms 防抖与中文输入法（composition）保护；
  * 支持在聚焦状态下连续输入（React 不会销毁输入框，无需手动恢复焦点）。
  */
 import { useEffect, useRef, useState } from 'react';
-import type { BookQuery, BookStatus, Category } from '../../../shared/types';
+import type { BookQuery, Category, ReadingStatus } from '../../../shared/types';
+import { READING_STATUS_OPTIONS, READING_STATUS_TEXT } from '../../lib/readingStatus';
 
 export function FilterBar({
   categories,
@@ -80,15 +81,18 @@ export function FilterBar({
       </select>
       <select
         className="select"
-        value={query.status ?? ''}
+        value={query.readingStatus ?? ''}
         onChange={(e) => {
           const v = e.target.value;
-          onChange({ status: (v === 'in' || v === 'out' ? v : undefined) as BookStatus | undefined });
+          onChange({ readingStatus: (v || undefined) as ReadingStatus | undefined });
         }}
       >
-        <option value="">全部状态</option>
-        <option value="in">在架</option>
-        <option value="out">借出</option>
+        <option value="">全部阅读状态</option>
+        {READING_STATUS_OPTIONS.map((s) => (
+          <option key={s} value={s}>
+            {READING_STATUS_TEXT[s]}
+          </option>
+        ))}
       </select>
     </div>
   );

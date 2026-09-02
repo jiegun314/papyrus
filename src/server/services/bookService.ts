@@ -1,11 +1,11 @@
 /**
  * server/services/bookService.ts
  * ------------------------------------------------------------------
- * 书籍业务服务：所有针对 books / tags / reviews / lendings 的数据库操作
+ * 书籍业务服务：所有针对 books / tags / reviews 的数据库操作
  * 都集中在这里，路由层只负责解析参数和返回 HTTP 响应。
  */
 import type { Book, BookInput, BookQuery, Stats } from '../../shared/types.js';
-import { getDb, rowToBook, stringifyAuthors, parseAuthors } from '../db/index.js';
+import { getDb, rowToBook, stringifyAuthors } from '../db/index.js';
 import { removeCover } from './cover.js';
 
 /* ------------------------------------------------------------------ */
@@ -39,32 +39,11 @@ function attachRelations(books: any[]): Book[] {
     if (!tagsByBook.has(r.book_id)) tagsByBook.set(r.book_id, []);
     tagsByBook.get(r.book_id)!.push({ id: r.id, name: r.name, createdAt: r.created_at });
   }
-  // 当前借阅信息
-  const lendRows = db
-    .prepare(
-      `SELECT * FROM lendings WHERE book_id IN (${ph}) AND status = 'borrowed'`
-    )
-    .all(...ids) as any[];
-  const lendByBook = new Map<number, any>();
-  for (const r of lendRows) {
-    if (!lendByBook.has(r.book_id)) {
-      lendByBook.set(r.book_id, {
-        id: r.id,
-        bookId: r.book_id,
-        borrower: r.borrower,
-        borrowedAt: r.borrowed_at,
-        returnedAt: r.returned_at,
-        note: r.note,
-        status: r.status,
-      });
-    }
-  }
 
   return books.map((row) => {
     const b = rowToBook(row) as Book;
     b.category = b.categoryId != null ? catMap.get(b.categoryId) ?? null : null;
     b.tags = tagsByBook.get(b.id) ?? [];
-    b.activeLending = lendByBook.get(b.id) ?? null;
     return b;
   });
 }
@@ -73,7 +52,7 @@ function attachRelations(books: any[]): Book[] {
 /* 书籍 CRUD                                                          */
 /* ------------------------------------------------------------------ */
 
-/** 列出书籍（支持关键字/分类/标签/状态筛选） */
+/** 列出书籍（支持关键字/分类/标签/阅读状态筛选） */
 export function listBooks(query: BookQuery): Book[] {
   const db = getDb();
   const where: string[] = [];
@@ -90,9 +69,9 @@ export function listBooks(query: BookQuery): Book[] {
     where.push('b.category_id = ?');
     params.push(query.categoryId);
   }
-  if (query.status) {
-    where.push('b.status = ?');
-    params.push(query.status);
+  if (query.readingStatus) {
+    where.push('b.reading_status = ?');
+    params.push(query.readingStatus);
   }
   if (query.tagId) {
     where.push(`EXISTS (SELECT 1 FROM book_tags bt2 WHERE bt2.book_id = b.id AND bt2.tag_id = ?)`);
@@ -120,7 +99,7 @@ export function listBooks(query: BookQuery): Book[] {
   return attachRelations(rows);
 }
 
-/** 书籍详情（含标签、书评、当前借阅信息） */
+/** 书籍详情（含标签、书评） */
 export function getBook(id: number): Book | null {
   const db = getDb();
   const row = db.prepare('SELECT * FROM books WHERE id = ?').get(id) as any;
@@ -157,12 +136,12 @@ export function createBook(input: BookInput & { doubanId?: string | null }): num
       douban_id, isbn13, isbn10, title, subtitle, original_title, authors,
       publisher, pubdate, price, pages, binding, series, summary, author_intro,
       catalog, cover_url, cover_path, rating_average, rating_count, douban_url,
-      category_id, status, notes
+      category_id, reading_status, notes
     ) VALUES (
       @doubanId, @isbn13, @isbn10, @title, @subtitle, @originalTitle, @authors,
       @publisher, @pubdate, @price, @pages, @binding, @series, @summary, @authorIntro,
       @catalog, @coverUrl, @coverPath, @ratingAverage, @ratingCount, @doubanUrl,
-      @categoryId, @status, @notes
+      @categoryId, @readingStatus, @notes
     )`);
 
   const info = stmt.run({
@@ -188,7 +167,7 @@ export function createBook(input: BookInput & { doubanId?: string | null }): num
     ratingCount: input.ratingCount ?? null,
     doubanUrl: input.doubanUrl ?? null,
     categoryId: input.categoryId ?? null,
-    status: input.status ?? 'in',
+    readingStatus: input.readingStatus ?? 'unread',
     notes: input.notes?.trim() || null,
   });
   return Number(info.lastInsertRowid);
@@ -205,7 +184,7 @@ export function updateBook(id: number, input: BookInput): Book | null {
     publisher: 'publisher', pubdate: 'pubdate', price: 'price', pages: 'pages',
     binding: 'binding', series: 'series', summary: 'summary', authorIntro: 'author_intro',
     catalog: 'catalog', isbn13: 'isbn13', isbn10: 'isbn10', categoryId: 'category_id',
-    status: 'status', notes: 'notes',
+    readingStatus: 'reading_status', notes: 'notes',
   };
   for (const key of Object.keys(map)) {
     if (key in input && input[key as keyof BookInput] !== undefined) {
@@ -235,7 +214,7 @@ export function setBookCategory(id: number, categoryId: number | null): Book | n
   return updateBook(id, { categoryId } as BookInput);
 }
 
-/** 删除书籍（级联删除标签关联、书评、借阅记录与封面文件） */
+/** 删除书籍（级联删除标签关联、书评与封面文件） */
 export function deleteBook(id: number): boolean {
   const db = getDb();
   const book = getBook(id);
@@ -364,71 +343,6 @@ export function deleteReview(reviewId: number): number | null {
   return r.book_id;
 }
 
-
-/* ------------------------------------------------------------------ */
-/* 借出 / 归还                                                        */
-/* ------------------------------------------------------------------ */
-
-/** 借出书籍 */
-export function borrowBook(bookId: number, borrower: string, note?: string) {
-  const db = getDb();
-  const book = getBook(bookId);
-  if (!book) throw new Error('书籍不存在');
-  if (book.status === 'out') throw new Error('这本书已经在借出状态');
-  const tx = db.transaction(() => {
-    db.prepare('INSERT INTO lendings (book_id, borrower, note) VALUES (?, ?, ?)')
-      .run(bookId, borrower.trim(), note?.trim() || null);
-    db.prepare("UPDATE books SET status = 'out', updated_at = datetime('now','localtime') WHERE id = ?")
-      .run(bookId);
-  });
-  tx();
-  return getBook(bookId);
-}
-
-/** 归还书籍（将当前所有未归还记录置为已归还） */
-export function returnBook(bookId: number): Book | null {
-  const db = getDb();
-  const book = getBook(bookId);
-  if (!book) throw new Error('书籍不存在');
-  const tx = db.transaction(() => {
-    db.prepare(
-      `UPDATE lendings SET status = 'returned', returned_at = datetime('now','localtime')
-       WHERE book_id = ? AND status = 'borrowed'`
-    ).run(bookId);
-    db.prepare("UPDATE books SET status = 'in', updated_at = datetime('now','localtime') WHERE id = ?")
-      .run(bookId);
-  });
-  tx();
-  return getBook(bookId);
-}
-
-/** 借阅记录列表 */
-export function listLendings(status?: 'borrowed' | 'returned') {
-  const db = getDb();
-  const sql = `
-    SELECT l.*, b.title AS book_title, b.authors AS book_authors, b.cover_path AS book_cover
-    FROM lendings l
-    JOIN books b ON b.id = l.book_id
-    ${status ? 'WHERE l.status = ?' : ''}
-    ORDER BY l.borrowed_at DESC LIMIT 500`;
-  const rows = db.prepare(sql).all(...(status ? [status] : [])) as any[];
-  return rows.map((r) => ({
-    id: r.id,
-    bookId: r.book_id,
-    borrower: r.borrower,
-    borrowedAt: r.borrowed_at,
-    returnedAt: r.returned_at,
-    note: r.note,
-    status: r.status,
-    bookTitle: r.book_title,
-    book: {
-      title: r.book_title,
-      authors: parseAuthors(r.book_authors),
-      coverPath: r.book_cover,
-    },
-  }));
-}
-
 /* ------------------------------------------------------------------ */
 /* 统计                                                               */
 /* ------------------------------------------------------------------ */
@@ -440,10 +354,14 @@ export function getStats(): Stats {
   const recentRows = db
     .prepare('SELECT * FROM books ORDER BY created_at DESC LIMIT 5')
     .all() as any[];
+  const countByReadingStatus = (s: string): number =>
+    (db.prepare('SELECT COUNT(*) AS c FROM books WHERE reading_status = ?').get(s) as { c: number }).c;
   return {
     totalBooks: q('SELECT COUNT(*) AS c FROM books'),
-    inLibrary: q(`SELECT COUNT(*) AS c FROM books WHERE status = 'in'`),
-    borrowed: q(`SELECT COUNT(*) AS c FROM books WHERE status = 'out'`),
+    unread: countByReadingStatus('unread'),
+    reading: countByReadingStatus('reading'),
+    read: countByReadingStatus('read'),
+    abandoned: countByReadingStatus('abandoned'),
     tagCount: q('SELECT COUNT(*) AS c FROM tags'),
     categoryCount: q('SELECT COUNT(*) AS c FROM categories'),
     reviewCount: q('SELECT COUNT(*) AS c FROM reviews'),

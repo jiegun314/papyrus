@@ -1,7 +1,7 @@
 /**
- * api/meta.ts —— 元数据接口：分类 / 标签 / 借阅 / 统计。
+ * api/meta.ts —— 元数据接口：分类 / 标签 / 统计。
  */
-import type { Category, Lending, Stats, Tag } from '../../shared/types';
+import type { Category, Stats, Tag } from '../../shared/types';
 import { request } from './http';
 
 /* ---------- 分类 ---------- */
@@ -33,13 +33,6 @@ export function listTags(): Promise<Tag[]> {
 
 export function deleteTag(id: number): Promise<{ ok: boolean }> {
   return request(`/api/tags/${id}`, { method: 'DELETE' });
-}
-
-/* ---------- 借阅 ---------- */
-
-export function listLendings(status?: 'borrowed' | 'returned'): Promise<Lending[]> {
-  const qs = status ? `?status=${status}` : '';
-  return request<Lending[]>(`/api/lendings${qs}`);
 }
 
 /* ---------- 统计 ---------- */

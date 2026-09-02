@@ -5,8 +5,8 @@
  * 保证前端与后端的类型一致，修改时可从这里入手。
  */
 
-/** 书籍在书架上的状态 */
-export type BookStatus = 'in' | 'out'; // 'in' = 在架, 'out' = 已借出
+/** 书籍阅读状态：unread = 未读, reading = 阅读中, read = 已读, abandoned = 放弃 */
+export type ReadingStatus = 'unread' | 'reading' | 'read' | 'abandoned';
 
 /** 图书基本信息（与数据库 books 表对应） */
 export interface Book {
@@ -38,15 +38,14 @@ export interface Book {
   categoryId: number | null;
   /** 展示时附带分类对象 */
   category?: Category | null;
-  status: BookStatus;
+  /** 阅读状态：未读 / 阅读中 / 已读 / 放弃 */
+  readingStatus: ReadingStatus;
   notes: string | null;     // 个人备注
   createdAt: string;
   updatedAt: string;
   /** 关联数据（列表/详情接口附带） */
   tags?: Tag[];
   reviews?: Review[];
-  /** 当前借阅信息（借出时附带） */
-  activeLending?: Lending | null;
 }
 
 /** 分类 */
@@ -77,31 +76,17 @@ export interface Review {
   updatedAt: string;
 }
 
-/** 借阅记录 */
-export interface Lending {
-  id: number;
-  bookId: number;
-  borrower: string;
-  borrowedAt: string;
-  returnedAt: string | null;
-  note: string | null;
-  /** 'borrowed' = 借出未还, 'returned' = 已归还 */
-  status: 'borrowed' | 'returned';
-  /** 附带书名（列表接口用） */
-  bookTitle?: string;
-  /** 附带书籍简要信息（列表接口用，用于展示封面/作者） */
-  book?: {
-    title: string;
-    authors: string[];
-    coverPath: string | null;
-  };
-}
-
 /** 统计信息（首页展示） */
 export interface Stats {
   totalBooks: number;
-  inLibrary: number;
-  borrowed: number;
+  /** 未读书籍数 */
+  unread: number;
+  /** 阅读中书籍数 */
+  reading: number;
+  /** 已读书籍数 */
+  read: number;
+  /** 放弃书籍数 */
+  abandoned: number;
   tagCount: number;
   categoryCount: number;
   reviewCount: number;
@@ -113,7 +98,7 @@ export interface BookQuery {
   keyword?: string; // 匹配标题/作者/ISBN/出版社
   categoryId?: number;
   tagId?: number;
-  status?: BookStatus;
+  readingStatus?: ReadingStatus;
   limit?: number;
   offset?: number;
   /** 仅返回有书评的书籍 */
@@ -154,7 +139,7 @@ export interface BookInput {
   isbn13?: string;
   isbn10?: string;
   categoryId?: number | null;
-  status?: BookStatus;
+  readingStatus?: ReadingStatus;
   notes?: string;
   /* 以下字段仅豆瓣导入时使用（手动表单不会用到） */
   doubanId?: string | null;

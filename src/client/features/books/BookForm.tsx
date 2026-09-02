@@ -2,7 +2,8 @@
  * features/books/BookForm.tsx —— 手动录入表单（新增 / 编辑共用）。
  * 采用「受控字段组件 + 纯数据转换」设计：状态由父级持有，组件只负责渲染。
  */
-import type { Book, BookInput, Category } from '../../../shared/types';
+import type { Book, BookInput, Category, ReadingStatus } from '../../../shared/types';
+import { READING_STATUS_OPTIONS, READING_STATUS_TEXT } from '../../lib/readingStatus';
 
 /** 表单原始值（输入框字符串状态） */
 export interface BookFormValues {
@@ -15,6 +16,7 @@ export interface BookFormValues {
   pages: string;
   isbn: string;
   category: string; // '' 或分类 id 字符串
+  readingStatus: ReadingStatus;
   summary: string;
   notes: string;
 }
@@ -30,6 +32,7 @@ export function emptyBookFormValues(): BookFormValues {
     pages: '',
     isbn: '',
     category: '',
+    readingStatus: 'unread',
     summary: '',
     notes: '',
   };
@@ -47,6 +50,7 @@ export function bookFormValuesFrom(initial?: Partial<Book> | null): BookFormValu
   v.pages = initial.pages ? String(initial.pages) : '';
   v.isbn = initial.isbn13 ?? '';
   v.category = initial.categoryId != null ? String(initial.categoryId) : '';
+  v.readingStatus = initial.readingStatus ?? 'unread';
   v.summary = initial.summary ?? '';
   v.notes = initial.notes ?? '';
   return v;
@@ -67,6 +71,7 @@ export function readBookFormValues(v: BookFormValues): BookInput {
     pages: v.pages ? Number(v.pages) : undefined,
     isbn13: v.isbn.trim() || undefined,
     categoryId: v.category ? Number(v.category) : null,
+    readingStatus: v.readingStatus,
     summary: v.summary.trim() || undefined,
     notes: v.notes.trim() || undefined,
   };
@@ -129,6 +134,19 @@ export function BookFormFields({
           {categories.map((c) => (
             <option key={c.id} value={String(c.id)}>
               {c.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="form-field">
+        <label>阅读状态</label>
+        <select
+          value={values.readingStatus}
+          onChange={(e) => onChange({ readingStatus: e.target.value as ReadingStatus })}
+        >
+          {READING_STATUS_OPTIONS.map((s) => (
+            <option key={s} value={s}>
+              {READING_STATUS_TEXT[s]}
             </option>
           ))}
         </select>

@@ -4,7 +4,6 @@
 import { useState } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom';
 import { AddBookModal } from '../features/douban/AddBookModal';
-import { LendingsPage } from '../features/lendings/LendingsPage';
 import { ShelfPage } from '../features/shelf/ShelfPage';
 import { TagsPage } from '../features/tags/TagsPage';
 import { CategoriesPage } from '../features/categories/CategoriesPage';
@@ -40,9 +39,6 @@ export function App() {
             <NavLink to="/" end className={({ isActive }) => navClass(isActive)}>
               书架
             </NavLink>
-            <NavLink to="/lendings" className={({ isActive }) => navClass(isActive)}>
-              借阅记录
-            </NavLink>
             <NavLink to="/tags" className={({ isActive }) => navClass(isActive)}>
               标签
             </NavLink>
@@ -61,7 +57,6 @@ export function App() {
       <main id="app" className="app-main">
         <Routes>
           <Route path="/" element={<ShelfPage />} />
-          <Route path="/lendings" element={<LendingsPage />} />
           <Route path="/tags" element={<TagsPage />} />
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

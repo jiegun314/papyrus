@@ -2,16 +2,16 @@
  * features/books/BookDetailModal.tsx —— 书籍详情弹窗。
  */
 import { useCallback, useEffect, useState } from 'react';
-import type { Book, Category, Tag } from '../../../shared/types';
+import type { Book, Category, ReadingStatus, Tag } from '../../../shared/types';
 import {
   addReview,
   deleteBook,
   deleteReview,
   getBook,
   retryCover,
-  returnBook,
   setCategory,
   setTags,
+  updateBook,
 } from '../../api/books';
 import { errorMessage } from '../../api/http';
 import { listCategories } from '../../api/meta';
@@ -23,7 +23,7 @@ import { Modal } from '../../components/Modal';
 import { StarRating } from '../../components/StarRating';
 import { useToast } from '../../components/Toast';
 import { authorText, fmtDate, fmtRating, starsText } from '../../lib/format';
-import { BorrowDialog } from './BorrowDialog';
+import { READING_STATUS_OPTIONS, READING_STATUS_TEXT } from '../../lib/readingStatus';
 import { EditBookDialog } from './EditBookDialog';
 import { TagPickerDialog } from './TagPickerDialog';
 
@@ -43,7 +43,7 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
   const [catBusy, setCatBusy] = useState(false);
   const [retryArmed, setRetryArmed] = useState(false);
   const [retrying, setRetrying] = useState(false);
-  const [borrowOpen, setBorrowOpen] = useState(false);
+  const [statusBusy, setStatusBusy] = useState(false);
   const [tagOpen, setTagOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -146,14 +146,18 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
     }
   };
 
-  const handleReturn = async () => {
-    if (!book) return;
+  /** 切换阅读状态（未读 / 阅读中 / 已读 / 放弃） */
+  const changeReadingStatus = async (s: ReadingStatus) => {
+    if (!book || s === book.readingStatus || statusBusy) return;
+    setStatusBusy(true);
     try {
-      await returnBook(book.id);
-      toast('归还成功', 'success');
+      await updateBook(book.id, { readingStatus: s });
+      toast(`已标记为「${READING_STATUS_TEXT[s]}」`, 'success');
       await refreshBook();
     } catch (e) {
       toast(errorMessage(e), 'error');
+    } finally {
+      setStatusBusy(false);
     }
   };
 
@@ -305,27 +309,24 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
               </button>
             </div>
 
-            {/* 借阅状态 */}
-            <div className="borrow-box">
-              {book.activeLending ? (
-                <>
-                  <div className="lend-status out">
-                    📤 借出中 — 借阅人：<b>{book.activeLending.borrower}</b>，借于{' '}
-                    {fmtDate(book.activeLending.borrowedAt)}
-                    {book.activeLending.note ? `，备注：${book.activeLending.note}` : ''}
-                  </div>
-                  <button type="button" className="btn btn-primary" onClick={handleReturn}>
-                    还书
+            {/* 阅读状态 */}
+            <div className="reading-box">
+              <span className="reading-box-label">阅读状态：</span>
+              <div className="reading-seg">
+                {READING_STATUS_OPTIONS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className={`reading-seg-btn${book.readingStatus === s ? ' active' : ''}`}
+                    data-status={s}
+                    disabled={statusBusy}
+                    title={`标记为「${READING_STATUS_TEXT[s]}」`}
+                    onClick={() => changeReadingStatus(s)}
+                  >
+                    {READING_STATUS_TEXT[s]}
                   </button>
-                </>
-              ) : (
-                <>
-                  <div className="lend-status in">📥 在架</div>
-                  <button type="button" className="btn btn-primary" onClick={() => setBorrowOpen(true)}>
-                    借出
-                  </button>
-                </>
-              )}
+                ))}
+              </div>
             </div>
             {/* 内容简介 / 作者简介 / 我的备注 —— 位于右列 detail-info 内部 */}
           {book.summary ? (
@@ -392,12 +393,6 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
         </div>
       </Modal>
       {/* 嵌套弹窗 */}
-      <BorrowDialog
-        book={book}
-        open={borrowOpen}
-        onClose={() => setBorrowOpen(false)}
-        onDone={() => refreshBook().catch((e) => toast(errorMessage(e), 'error'))}
-      />
       <TagPickerDialog
         book={book}
         open={tagOpen}
@@ -419,7 +414,7 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
         title="删除书籍"
         danger
         confirmText="确认删除"
-        message={<p>确定要删除《{book.title}》吗？此操作不可恢复，书评与借阅记录将一并删除。</p>}
+        message={<p>确定要删除《{book.title}》吗？此操作不可恢复，书评与标签关联将一并删除。</p>}
         onCancel={() => setDeleteOpen(false)}
         onConfirm={confirmDelete}
       />

@@ -139,6 +139,8 @@ button.stat-card.clickable { cursor: pointer; }
 .stat-card .stat-num { font-size: 30px; font-weight: 800; font-family: var(--serif); color: var(--accent); }
 .stat-card .stat-num.teal { color: var(--teal); }
 .stat-card .stat-num.green { color: var(--green); }
+.stat-card .stat-num.gray { color: var(--ink-soft); }
+.stat-card .stat-num.danger { color: var(--danger); }
 .stat-card .stat-label { font-size: 13px; color: var(--ink-soft); }
 
 /* ---------- 筛选栏 ---------- */
@@ -249,7 +251,7 @@ button.stat-card.clickable { cursor: pointer; }
   display: block;
 }
 .book-cover .cover-fallback { font-size: 34px; opacity: .5; filter: grayscale(.3); }
-.book-cover .status-badge {
+.book-cover .reading-badge {
   position: absolute;
   top: 8px;
   left: 8px;
@@ -258,10 +260,13 @@ button.stat-card.clickable { cursor: pointer; }
   font-size: 12px;
   font-weight: 600;
   color: #fff;
-  background: rgba(192,57,43,.88);
+  background: rgba(122,112,98,.78);
   backdrop-filter: blur(4px);
 }
-.book-cover .status-badge.in { background: rgba(91,140,90,.9); }
+/* 阅读状态配色：未读=灰 / 阅读中=蓝 / 已读=绿 / 放弃=红 */
+.book-cover .reading-badge.reading { background: rgba(58,124,165,.92); }
+.book-cover .reading-badge.read { background: rgba(91,140,90,.92); }
+.book-cover .reading-badge.abandoned { background: rgba(192,57,43,.85); }
 
 .book-meta { padding: 10px 4px 0; }
 .book-title-line { display: flex; align-items: flex-start; gap: 6px; min-width: 0; }
@@ -296,53 +301,6 @@ button.stat-card.clickable { cursor: pointer; }
   color: var(--ink-faint);
 }
 .empty-state .empty-icon { font-size: 48px; display: block; margin-bottom: 14px; }
-
-
-/* ---------- 借阅记录 ---------- */
-
-.section-card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-  margin-bottom: 24px;
-}
-.section-card h3 {
-  font-family: var(--serif);
-  font-size: 16px;
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.section-card h3 .count { font-family: var(--sans); font-size: 13px; color: var(--ink-faint); font-weight: 400; }
-
-.data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-.data-table th {
-  text-align: left;
-  padding: 10px 20px;
-  color: var(--ink-faint);
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: .4px;
-  background: rgba(0,0,0,.015);
-  border-bottom: 1px solid var(--line);
-}
-.data-table td { padding: 12px 20px; border-bottom: 1px solid rgba(230,220,203,.6); }
-.data-table tr:last-child td { border-bottom: none; }
-.data-table tr:hover td { background: rgba(180,83,42,.03); }
-
-.badge {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-}
-.badge.borrowed { background: #fbe9e7; color: var(--danger); }
-.badge.returned { background: #e8f0e8; color: var(--green); }
 
 /* ---------- 标签 / 分类管理 ---------- */
 
@@ -672,11 +630,10 @@ button.stat-card.clickable { cursor: pointer; }
   .book-detail .detail-cover { max-width: 200px; }
   .form-grid { grid-template-columns: 1fr; }
   .book-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
-  .lend-table { display: block; overflow-x: auto; white-space: nowrap; }
 }
 
 /* ============================================================
-   补充：详情弹窗 / 借阅视图 / 标签·分类管理 等缺失样式
+   补充：详情弹窗 / 阅读状态 / 标签·分类管理 等缺失样式
    ============================================================ */
 
 /* 详情信息区 */
@@ -778,11 +735,34 @@ button.stat-card.clickable { cursor: pointer; }
 .tag-add:hover { border-color: var(--accent); color: var(--accent); }
 .tag-picker { display: flex; flex-wrap: wrap; gap: 8px; max-height: 190px; overflow-y: auto; padding: 4px; }
 
-/* 借出状态 */
-.borrow-box { margin-top: 16px; display: flex; align-items: center; gap: 10px; }
-.lend-status { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 10px; font-size: 13.5px; }
-.lend-status.out { background: #fbe9e7; color: var(--danger); }
-.lend-status.in { background: #e8f0e8; color: var(--green); }
+/* 阅读状态切换 */
+.reading-box { margin-top: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.reading-box-label { font-size: 13px; color: var(--ink-faint); flex: none; }
+.reading-seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--card);
+}
+.reading-seg-btn {
+  border: none;
+  background: transparent;
+  padding: 7px 15px;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: all .16s;
+}
+.reading-seg-btn + .reading-seg-btn { border-left: 1px solid var(--line); }
+.reading-seg-btn:hover { background: var(--bg-deep); color: var(--ink); }
+.reading-seg-btn:disabled { opacity: .55; cursor: default; }
+.reading-seg-btn.active { color: #fff; }
+.reading-seg-btn[data-status='unread'].active { background: var(--ink-soft); }      /* 未读 */
+.reading-seg-btn[data-status='reading'].active { background: var(--teal); }         /* 阅读中 */
+.reading-seg-btn[data-status='read'].active { background: var(--green); }           /* 已读 */
+.reading-seg-btn[data-status='abandoned'].active { background: var(--danger); }     /* 放弃 */
 
 /* 简介 / 备注 / 书评 */
 .summary-text { margin-top: 6px; font-size: 14px; color: var(--ink-soft); line-height: 1.8; white-space: pre-wrap; }
@@ -828,36 +808,6 @@ button.stat-card.clickable { cursor: pointer; }
 .btn-link:hover { background: var(--bg-deep); text-decoration: underline; }
 .btn-link.danger { color: var(--danger); }
 .btn-link.danger:hover { background: #fdf0ee; }
-
-/* 借阅视图 */
-.lendings-section { margin-bottom: 30px; }
-.lendings-section h3 { display: flex; align-items: center; gap: 10px; font-family: var(--serif); font-size: 19px; margin-bottom: 10px; }
-.lend-count { padding: 2px 11px; border-radius: 999px; background: var(--bg-deep); color: var(--ink-faint); font-family: var(--sans); font-size: 12.5px; }
-.lend-table {
-  width: 100%;
-  border-collapse: collapse;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  overflow: hidden;
-  background: var(--card);
-}
-.lend-table th {
-  padding: 11px 14px;
-  text-align: left;
-  background: rgba(61,55,48,.03);
-  color: var(--ink-faint);
-  font-size: 12.5px;
-  border-bottom: 1px solid var(--line);
-}
-.lend-table td { padding: 12px 14px; font-size: 13.5px; border-bottom: 1px solid rgba(230,220,203,.55); vertical-align: middle; }
-.lend-table tbody tr:last-child td { border-bottom: none; }
-.lend-table tbody tr:hover td { background: rgba(180,83,42,.035); }
-.td-book { display: flex; align-items: center; gap: 10px; cursor: pointer; }
-.td-book img { width: 36px; height: 50px; object-fit: cover; border-radius: 4px; background: #eee5d6; flex-shrink: 0; }
-.td-title { font-weight: 600; }
-.td-sub { margin-top: 2px; font-size: 12px; color: var(--ink-faint); }
-.lend-badge { display: inline-block; padding: 3px 11px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #e8f0e8; color: var(--green); }
-.lend-badge.active { background: #fbe9e7; color: var(--danger); }
 
 /* 标签 / 分类管理列表 */
 .meta-list { display: flex; flex-direction: column; gap: 10px; }
