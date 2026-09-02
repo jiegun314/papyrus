@@ -47,3 +47,18 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     });
   });
 }
+
+// 兜底：捕获未处理异常 / 未捕获的 Promise 拒绝。
+// 默认 Node 行为会直接崩溃（exit 1），这里补一行可读的堆栈便于排查——
+// 否则进程会“静默死亡”，tsx watch 的父进程仍在、但其后端子进程已消失，
+// 表现为 3000 端口突然 404，这也是此前“页面空白 / API 失效”的一个来源。
+process.on('uncaughtException', (err) => {
+  console.error('[papyrus] 未捕获异常，进程将退出:', err);
+  try { closeDb(); } catch { /* 忽略二次错误 */ }
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[papyrus] 未处理的 Promise 拒绝，进程将退出:', reason);
+  try { closeDb(); } catch { /* 忽略二次错误 */ }
+  process.exit(1);
+});
