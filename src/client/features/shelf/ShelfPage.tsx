@@ -60,15 +60,28 @@ export function ShelfPage() {
     setQuery((prev) => ({ ...prev, ...patch }));
   }, []);
 
-  if (loading) return <Loading text="正在加载书架…" />;
-
-  if (loadError || !stats) {
+  // 首屏（尚未加载出任何数据）时整页 Loading；一旦展示过内容，
+  // 后续的搜索 / 筛选 / 刷新只更新下方书籍区域 —— 筛选栏与搜索框始终常驻，
+  // 避免请求期间卸载 <input> 导致光标失焦、无法连续输入。
+  if (stats == null) {
+    if (loading) return <Loading text="正在加载书架…" />;
     return (
       <EmptyState icon="⚠️">
         <p>加载失败：{loadError ?? '未知错误'}</p>
       </EmptyState>
     );
   }
+
+  const hasFilter = Boolean(query.keyword || query.categoryId != null || query.readingStatus);
+  // 刷新期间保留上一次的书籍网格（仅更新区域内容），无旧结果时留空交给更新提示条展示
+  const grid =
+    books.length > 0 ? (
+      <div className="book-grid">
+        {books.map((b) => (
+          <BookCard key={b.id} book={b} onOpen={(id) => setDetailId(id)} />
+        ))}
+      </div>
+    ) : null;
 
   return (
     <>
@@ -80,17 +93,35 @@ export function ShelfPage() {
 
       <FilterBar categories={categories} query={query} onChange={handleFilterChange} />
 
-      {books.length === 0 ? (
-        <EmptyState icon="🪴">
-          <p>书架空空如也</p>
-          <p style={{ fontSize: 13, marginTop: 6 }}>点击右上角「＋ 添加书籍」，通过 ISBN 或书名从豆瓣导入</p>
+      {loading ? (
+        <div className="shelf-refreshing" role="status">
+          <span className="spinner" aria-hidden="true" />
+          <span>正在更新…</span>
+        </div>
+      ) : null}
+
+      {loading ? (
+        grid
+      ) : loadError ? (
+        <EmptyState icon="⚠️">
+          <p>加载失败：{loadError}</p>
+        </EmptyState>
+      ) : books.length === 0 ? (
+        <EmptyState icon={hasFilter ? '🔍' : '🪴'}>
+          {hasFilter ? (
+            <>
+              <p>没有找到符合条件的书籍</p>
+              <p style={{ fontSize: 13, marginTop: 6 }}>试试更换关键词，或调整分类 / 阅读状态筛选</p>
+            </>
+          ) : (
+            <>
+              <p>书架空空如也</p>
+              <p style={{ fontSize: 13, marginTop: 6 }}>点击右上角「＋ 添加书籍」，通过 ISBN 或书名从豆瓣导入</p>
+            </>
+          )}
         </EmptyState>
       ) : (
-        <div className="book-grid">
-          {books.map((b) => (
-            <BookCard key={b.id} book={b} onOpen={(id) => setDetailId(id)} />
-          ))}
-        </div>
+        grid
       )}
 
       {listModal && (

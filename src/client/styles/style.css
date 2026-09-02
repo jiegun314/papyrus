@@ -580,6 +580,22 @@ button.stat-card.clickable { cursor: pointer; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* 书架更新中的细提示条（仅在书籍区域顶部短暂出现，不卸载筛选栏/搜索框） */
+.shelf-refreshing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-faint);
+  margin: -10px 0 16px;
+}
+.shelf-refreshing .spinner {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  border-width: 2px;
+}
+
 
 /* ---------- 豆瓣搜索结果 ---------- */
 
