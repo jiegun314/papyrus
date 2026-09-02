@@ -83,46 +83,51 @@ export function ShelfPage() {
       </div>
     ) : null;
 
+  // 双栏布局：右侧统计卡片列吸顶固定，左侧为主内容（筛选栏 + 书籍区域）
   return (
-    <>
-      <StatsCards
-        stats={stats}
-        onOpenList={(title, q) => setListModal({ title, query: q })}
-        onOpenView={(view) => navigate(`/${view}`)}
-      />
+    <div className="shelf-layout">
+      <aside className="shelf-side" aria-label="书架统计">
+        <StatsCards
+          stats={stats}
+          onOpenList={(title, q) => setListModal({ title, query: q })}
+          onOpenView={(view) => navigate(`/${view}`)}
+        />
+      </aside>
 
-      <FilterBar categories={categories} query={query} onChange={handleFilterChange} />
+      <div className="shelf-main">
+        <FilterBar categories={categories} query={query} onChange={handleFilterChange} />
 
-      {loading ? (
-        <div className="shelf-refreshing" role="status">
-          <span className="spinner" aria-hidden="true" />
-          <span>正在更新…</span>
-        </div>
-      ) : null}
+        {loading ? (
+          <div className="shelf-refreshing" role="status">
+            <span className="spinner" aria-hidden="true" />
+            <span>正在更新…</span>
+          </div>
+        ) : null}
 
-      {loading ? (
-        grid
-      ) : loadError ? (
-        <EmptyState icon="⚠️">
-          <p>加载失败：{loadError}</p>
-        </EmptyState>
-      ) : books.length === 0 ? (
-        <EmptyState icon={hasFilter ? '🔍' : '🪴'}>
-          {hasFilter ? (
-            <>
-              <p>没有找到符合条件的书籍</p>
-              <p style={{ fontSize: 13, marginTop: 6 }}>试试更换关键词，或调整分类 / 阅读状态筛选</p>
-            </>
-          ) : (
-            <>
-              <p>书架空空如也</p>
-              <p style={{ fontSize: 13, marginTop: 6 }}>点击右上角「＋ 添加书籍」，通过 ISBN 或书名从豆瓣导入</p>
-            </>
-          )}
-        </EmptyState>
-      ) : (
-        grid
-      )}
+        {loading ? (
+          grid
+        ) : loadError ? (
+          <EmptyState icon="⚠️">
+            <p>加载失败：{loadError}</p>
+          </EmptyState>
+        ) : books.length === 0 ? (
+          <EmptyState icon={hasFilter ? '🔍' : '🪴'}>
+            {hasFilter ? (
+              <>
+                <p>没有找到符合条件的书籍</p>
+                <p style={{ fontSize: 13, marginTop: 6 }}>试试更换关键词，或调整分类 / 阅读状态筛选</p>
+              </>
+            ) : (
+              <>
+                <p>书架空空如也</p>
+                <p style={{ fontSize: 13, marginTop: 6 }}>点击右上角「＋ 添加书籍」，通过 ISBN 或书名从豆瓣导入</p>
+              </>
+            )}
+          </EmptyState>
+        ) : (
+          grid
+        )}
+      </div>
 
       {listModal && (
         <BooksByFilterModal
@@ -134,6 +139,6 @@ export function ShelfPage() {
       {detailId != null && (
         <BookDetailModal bookId={detailId} onClose={() => setDetailId(null)} onMutated={reload} />
       )}
-    </>
+    </div>
   );
 }

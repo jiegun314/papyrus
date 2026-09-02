@@ -110,13 +110,33 @@ body {
 .view-title { font-family: var(--serif); font-size: 22px; font-weight: 700; margin-bottom: 4px; }
 .view-sub { color: var(--ink-soft); font-size: 13.5px; margin-bottom: 22px; }
 
-/* ---------- 统计卡片 ---------- */
+/* ---------- 书架双栏布局：左侧书籍 + 右侧固定统计列 ---------- */
+
+.shelf-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 26px;
+}
+.shelf-main { flex: 1 1 auto; min-width: 0; }
+/* 右侧统计卡片列：竖向排列并吸顶，页面上下滚动时保持在视口固定位置 */
+.shelf-side {
+  position: sticky;
+  top: 74px;                       /* 顶部吸顶导航（约 61px）+ 呼吸间距 */
+  flex: 0 0 236px;
+  width: 236px;
+  max-height: calc(100vh - 98px);  /* 视口高度不足时列内自行滚动，卡片不挤占左侧书籍区 */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+/* ---------- 统计卡片（右侧竖列） ---------- */
 
 .stats-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 14px;
-  margin-bottom: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 .stat-card {
   background: var(--card);
@@ -639,6 +659,20 @@ button.stat-card.clickable { cursor: pointer; }
 .preview-panel .pv-summary { color: var(--ink-soft); font-size: 13px; max-height: 90px; overflow-y: auto; line-height: 1.7; }
 
 /* ---------- 响应式 ---------- */
+
+/* 窄屏：右侧统计列宽度不足以承载双栏，取消吸顶、恢复为书架主区上方的横向卡片排 */
+@media (max-width: 920px) {
+  .shelf-layout { display: block; }
+  .shelf-side {
+    position: static;
+    width: auto;
+    max-height: none;
+    overflow: visible;
+    margin-bottom: 24px;
+  }
+  .stats-row { flex-direction: row; flex-wrap: wrap; gap: 10px; }
+  .stats-row .stat-card { flex: 1 1 140px; }
+}
 
 @media (max-width: 720px) {
   .header-inner { flex-wrap: wrap; gap: 10px; }
