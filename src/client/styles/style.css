@@ -922,3 +922,10 @@ button.stat-card.clickable { cursor: pointer; }
 .pv-hint { margin-top: 6px; font-size: 12px; color: var(--ink-faint); }
 
 
+
+/* ============================================================
+   补充：React 路由链接适配（brand / nav-tab 以 <a> 渲染）
+   ============================================================ */
+.brand { text-decoration: none; color: inherit; }
+.nav-tabs a.nav-tab { text-decoration: none; color: var(--ink-soft); }
+.nav-tabs a.nav-tab.active { color: #fff; }

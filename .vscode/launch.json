@@ -35,9 +35,13 @@
       "name": "Debug Frontend (Chrome)",
       "type": "chrome",
       "request": "launch",
-      "url": "http://localhost:3000",
+      "url": "http://localhost:5173",
       "webRoot": "${workspaceFolder}",
-      "sourceMaps": true
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "webpack:///./src/*": "${webRoot}/src/client/*",
+        "webpack:///src/*": "${webRoot}/src/client/*"
+      }
     },
     {
       "name": "Debug Full Stack",
@@ -52,10 +56,11 @@
         "PORT": "3000"
       },
       "console": "integratedTerminal",
+      "preLaunchTask": "npm: build",
       "skipFiles": ["<node_internals>/**", "${workspaceFolder}/node_modules/**"],
       "serverReadyAction": {
         "pattern": "Web 界面 : http://localhost:([0-9]+)",
-        "uriFormat": "http://localhost:%s",
+        "uriFormat": "http://localhost:%s/",
         "action": "debugWithChrome"
       }
     }

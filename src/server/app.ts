@@ -4,6 +4,7 @@
  * Express 应用装配：静态资源、API 路由、JSON 解析、错误处理。
  */
 import express from 'express';
+import fs from 'node:fs';
 import path from 'node:path';
 import { booksRouter } from './routes/books.js';
 import { doubanRouter } from './routes/douban.js';
@@ -34,17 +35,23 @@ export function createApp(): express.Express {
   // 健康检查
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
-  // 前端静态资源（public/）
-  const publicDir = path.join(ROOT_DIR, 'public');
-  app.use(express.static(publicDir));
+  // React 前端静态资源（dist/client，由 vite build 产出）
+  const clientDir = path.join(ROOT_DIR, 'dist', 'client');
+  const clientIndex = path.join(clientDir, 'index.html');
+  const clientBuilt = fs.existsSync(clientIndex);
 
-  // SPA 兜底：未匹配的 GET 请求返回 index.html
-  app.use((req, res, next) => {
-    if (req.method !== 'GET') return next();
-    res.sendFile(path.join(publicDir, 'index.html'), (err) => {
-      if (err) next();
+  if (clientBuilt) {
+    app.use(express.static(clientDir));
+
+    // SPA 兜底：浏览器路由（如 /tags 直接刷新）未匹配到文件时返回 index.html
+    app.use((req, res, next) => {
+      if (req.method !== 'GET') return next();
+      if (req.path.startsWith('/api/') || req.path.startsWith('/covers/')) return next();
+      res.sendFile(clientIndex, (err) => {
+        if (err) next();
+      });
     });
-  });
+  }
 
   // 统一错误处理
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

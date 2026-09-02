@@ -1,6 +1,6 @@
 # 📚 Papyrus · 个人书籍管理系统
 
-> 纯 TypeScript 实现的书架管理工具：**豆瓣元数据导入 + SQLite 本地存储 + 个人书评与借阅管理**，配一个暖色纸张质感的小清新 Web 界面。
+> React 19 + TypeScript 的个人书架管理工具：**豆瓣元数据导入 + SQLite 本地存储 + 个人书评与借阅管理**，配一个暖色纸张质感的小清新 Web 界面。前端按功能模块化组织，后端为 Express + better-sqlite3，前后端共享 `src/shared/types.ts` 类型。
 
 ## ✨ 功能一览
 
@@ -21,54 +21,60 @@
 ## 🚀 快速开始
 
 ```bash
-# 1. 安装依赖（Node.js ≥ 18，建议 20+）
+# 1. 安装依赖（Node.js ≥ 20.19，建议 22+）
 npm install --cache ./.npm-cache
 
-# 2. 开发模式（热重载，默认端口 3000）
+# 2. 开发模式（Vite HMR 5173 + 后端 tsx watch 3000）
 npm run dev
-# 或指定端口
-PORT=8080 npm run dev
 
-# 3. 打开浏览器
-open http://localhost:3000
+# 3. 打开浏览器（推荐 Chrome）
+open http://localhost:5173
 ```
 
-首次启动会自动创建 `data/papyrus.db`（SQLite）并写入默认分类。
+说明：
+
+- 开发时页面由 **Vite dev server**（`http://localhost:5173`）提供，`/api` 与 `/covers` 自动代理到后端 `3000`；
+- 后端可用环境变量 `PORT` 指定端口（默认 3000）；
+- 首次启动会自动创建 `data/papyrus.db`（SQLite）并写入默认分类。
 
 ### 生产模式
 
 ```bash
-npm run build    # 构建前端 app.js + 后端 dist/
-npm start        # node dist/server/index.js
+npm run build    # vite build → dist/client；tsc → dist/server
+npm start        # node dist/server/index.js（Express 同时托管 API 与 dist/client）
+# 打开 http://localhost:3000
 ```
 
 ## 🗂 目录结构
 
-```
+```text
 papyrus/
 ├── src/
-│   ├── shared/types.ts        # 前后端共享的类型定义
-│   ├── server/
-│   │   ├── index.ts           # 服务入口（优雅退出、端口监听）
-│   │   ├── app.ts             # Express 应用组装
-│   │   ├── db/
-│   │   │   ├── schema.ts      # SQLite 建表语句 + 默认分类
-│   │   │   └── index.ts       # 连接单例、行映射工具
-│   │   ├── services/
-│   │   │   ├── douban.ts      # 豆瓣抓取（搜索 / 详情 / ISBN 解析）
-│   │   │   ├── cover.ts       # 封面下载与本地缓存
-│   │   │   └── bookService.ts # 书籍 / 标签 / 书评 / 借阅业务
-│   │   └── routes/
-│   │       ├── books.ts       # /api/books 增删改查
-│   │       ├── douban.ts      # /api/douban 豆瓣导入
-│   │       └── meta.ts        # /api/categories|tags|lendings|stats
-│   └── frontend/
-│       ├── main.ts            # 前端主逻辑（视图 + 交互）
-│       ├── api.ts             # API 封装
-│       ├── ui.ts              # 弹窗 / Toast / 评分等 UI 工具
-│       └── style.css          # 样式（暖纸主题）
-├── public/                    # 静态资源（index.html 与构建产物）
-└── data/                      # 运行时数据（SQLite + 封面缓存，不入库）
+│   ├── shared/types.ts              # 前后端共享的类型定义
+│   ├── server/                      # Express 后端（按分层模块化）
+│   │   ├── index.ts                 # 服务入口（优雅退出、端口监听）
+│   │   ├── app.ts                   # Express 组装 + dist/client 生产托管
+│   │   ├── db/                      # schema.ts + 连接单例
+│   │   ├── services/                # douban / cover / bookService
+│   │   └── routes/                  # books / douban / meta
+│   └── client/                      # ★ React 19 SPA（Vite 构建）
+│       ├── index.html               # Vite 入口（root = src/client）
+│       ├── main.tsx                 # React 挂载
+│       ├── app/                     # 应用外壳（App、路由、全局刷新）
+│       ├── api/                     # fetch 封装 + books / douban / meta 分域接口
+│       ├── components/              # 通用 UI：Modal / Toast / 评分 / 封面…
+│       ├── features/                # ★ 按功能模块化
+│       │   ├── shelf/               #   书架主页（统计卡 + 筛选栏 + 网格）
+│       │   ├── books/               #   书籍卡片 / 详情 / 表单 / 借出 / 标签
+│       │   ├── douban/              #   豆瓣导入（搜索 + 预览 + 手动录入）
+│       │   ├── lendings/            #   借阅记录
+│       │   ├── tags/                #   标签管理
+│       │   └── categories/          #   分类管理
+│       ├── lib/                     # 展示格式化工具
+│       └── styles/style.css         # 暖纸主题（CSS 变量集中管理）
+├── vite.config.ts                   # Vite 配置（root / 代理 / 输出目录）
+├── dist/                            # 构建产物（server + client，不入库）
+└── data/                            # 运行时数据（SQLite + 封面缓存，不入库）
 ```
 
 ## 🗄 数据存储
@@ -132,19 +138,31 @@ papyrus/
 
 ## 🎨 定制指南
 
-- **主题配色**：`src/frontend/style.css` 顶部的 CSS 变量 `--bg / --ink / --accent / --serif` 等，改一处全局生效
+- **主题配色**：`src/client/styles/style.css` 顶部的 CSS 变量 `--bg / --ink / --accent / --serif` 等，改一处全局生效
+- **前端功能模块**：每个页面/弹窗对应 `src/client/features/<功能>/` 下的一个目录，互不耦合
 - **默认分类**：`src/server/db/schema.ts` 的 `DEFAULT_CATEGORIES`
 - **搜索联想接口**：若豆瓣变更接口，只需改 `src/server/services/douban.ts` 的 `searchDouban`
-- **端口**：环境变量 `PORT`
+- **端口**：后端环境变量 `PORT`（默认 3000）；前端开发端口由 `vite.config.ts` 的 `server.port` 控制（默认 5173）
 
 ## 🧪 开发命令
 
 ```bash
-npm run typecheck   # 前后端类型检查
-npm run dev:client  # 仅前端监听打包（esbuild --watch，改动自动重建 public/app.js）
-npm run build:client  # 一次性打包前端 → public/app.js + app.css
-npm run build:server  # tsc 编译后端 → dist/
-npm run build       # 二者全做
+npm run dev           # 并行启动：后端 tsx watch + 前端 Vite（HMR）
+npm run typecheck     # 前后端类型检查（server + client 两个 tsconfig）
+npm run dev:server    # 仅后端（tsx watch，3000）
+npm run dev:client    # 仅前端 Vite dev server（5173）
+npm run build:client  # 构建 React 前端 → dist/client
+npm run build:server  # tsc 编译后端 → dist/server
+npm run build         # 二者全做
+```
+
+## 🐞 VS Code 调试
+
+```text
+Debug Server (tsx)        调试后端源码（src/server/index.ts）
+Debug Server (compiled)   调试编译产物（dist/server/index.js，preLaunch 自动 build:server）
+Debug Frontend (Chrome)   先 `npm run dev`，再对 http://localhost:5173 做前端断点调试
+Debug Full Stack          一次启动：preLaunch 构建 → 启动 tsx 后端 → Chrome 打开 http://localhost:3000
 ```
 
 ## 📄 License
