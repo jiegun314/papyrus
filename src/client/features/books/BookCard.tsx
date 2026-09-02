@@ -25,12 +25,15 @@ export function BookCard({ book, onOpen }: { book: Book; onOpen: (id: number) =>
           <div className="book-title">{book.title}</div>
         </div>
         <div className="book-author">{authorText(book)}</div>
-        {book.ratingAverage != null && (
-          <div className="book-rating">
-            ★ {fmtRating(book.ratingAverage)}
-            {book.ratingCount ? <span className="votes">{book.ratingCount} 人评价</span> : null}
-          </div>
-        )}
+        {/* 评分行始终占位：无评分时留同等空白，保证所有卡片各行位置一致 */}
+        <div className="book-rating">
+          {book.ratingAverage != null ? (
+            <>
+              ★ {fmtRating(book.ratingAverage)}
+              {book.ratingCount ? <span className="votes">{book.ratingCount} 人评价</span> : null}
+            </>
+          ) : null}
+        </div>
       </div>
     </button>
   );

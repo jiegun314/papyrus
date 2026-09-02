@@ -217,6 +217,12 @@ button.stat-card.clickable { cursor: pointer; }
   text-align: left;
   font-family: var(--sans);
   transition: transform .18s;
+  /* 内容纵向、顶部对齐：网格行等高拉伸时按钮内容默认会垂直居中，
+     导致信息较少的卡片（如无评分）整体下移；flex 列布局可固定从顶部排布 */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
 }
 .book-card:hover { transform: translateY(-5px); }
 .book-card:hover .book-cover { box-shadow: var(--shadow-lg); }
@@ -280,7 +286,7 @@ button.stat-card.clickable { cursor: pointer; }
   min-height: 2.7em;
 }
 .book-author { font-size: 13px; color: var(--ink-soft); margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
-.book-rating { font-size: 12.5px; color: var(--gold); margin-top: 3px; }
+.book-rating { font-size: 12.5px; color: var(--gold); margin-top: 3px; min-height: 1.6em; }
 .book-rating .votes { color: var(--ink-faint); margin-left: 4px; }
 
 .empty-state {
