@@ -122,8 +122,8 @@ body {
 .shelf-side {
   position: sticky;
   top: 74px;                       /* 顶部吸顶导航（约 61px）+ 呼吸间距 */
-  flex: 0 0 236px;
-  width: 236px;
+  flex: 0 0 158px;
+  width: 158px;
   max-height: calc(100vh - 98px);  /* 视口高度不足时列内自行滚动，卡片不挤占左侧书籍区 */
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -157,8 +157,8 @@ button.stat-card {
 }
 button.stat-card.clickable { cursor: pointer; }
 .stat-card.clickable:hover { transform: translateY(-2px); }
-.stat-card .stat-label { font-size: 14px; font-weight: 600; color: var(--ink-soft); letter-spacing: .3px; }
-.stat-card .stat-num { font-size: 36px; font-weight: 800; font-family: var(--serif); color: var(--accent); line-height: 1.05; }
+.stat-card .stat-label { font-size: 18px; font-weight: 600; color: var(--ink-soft); letter-spacing: .3px; text-align: left; }
+.stat-card .stat-num { font-size: 32px; font-weight: 800; font-family: var(--serif); color: var(--accent); line-height: 1.05; text-align: center; }
 .stat-card .stat-num.teal { color: var(--teal); }
 .stat-card .stat-num.green { color: var(--green); }
 .stat-card .stat-num.gray { color: var(--ink-soft); }
