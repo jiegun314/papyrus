@@ -135,7 +135,6 @@ export function CategoriesPage() {
               type="color"
               value={newColor}
               onChange={(e) => setNewColor(e.target.value)}
-              style={{ width: 44, padding: 0 }}
             />
             <button type="button" className="btn btn-primary" onClick={addCategory}>
               添加分类
@@ -226,7 +225,6 @@ function RenameCategoryDialog({
           type="color"
           value={color}
           onChange={(e) => setColor(e.target.value)}
-          style={{ width: 44, padding: 0 }}
         />
       </div>
     </Modal>
