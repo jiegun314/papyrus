@@ -122,11 +122,12 @@ body {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 16px 18px;
+  padding: 10px 14px 12px;
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  justify-content: center;
+  gap: 3px;
   transition: transform .16s;
 }
 button.stat-card {
@@ -136,12 +137,12 @@ button.stat-card {
 }
 button.stat-card.clickable { cursor: pointer; }
 .stat-card.clickable:hover { transform: translateY(-2px); }
-.stat-card .stat-num { font-size: 30px; font-weight: 800; font-family: var(--serif); color: var(--accent); }
+.stat-card .stat-label { font-size: 14px; font-weight: 600; color: var(--ink-soft); letter-spacing: .3px; }
+.stat-card .stat-num { font-size: 36px; font-weight: 800; font-family: var(--serif); color: var(--accent); line-height: 1.05; }
 .stat-card .stat-num.teal { color: var(--teal); }
 .stat-card .stat-num.green { color: var(--green); }
 .stat-card .stat-num.gray { color: var(--ink-soft); }
 .stat-card .stat-num.danger { color: var(--danger); }
-.stat-card .stat-label { font-size: 13px; color: var(--ink-soft); }
 
 /* ---------- 筛选栏 ---------- */
 

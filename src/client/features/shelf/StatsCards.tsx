@@ -54,8 +54,8 @@ export function StatsCards({
           : undefined;
         const inner = (
           <>
-            <div className={`stat-num ${d.color ?? ''}`}>{d.count}</div>
             <div className="stat-label">{d.label}</div>
+            <div className={`stat-num ${d.color ?? ''}`}>{d.count}</div>
           </>
         );
         return clickable ? (
