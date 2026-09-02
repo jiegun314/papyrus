@@ -1,0 +1,26 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(100, 100)" fill="none" stroke="#1a120b" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 卷轴外轮廓 -->
+    <path d="M-55,-55 C-55,-65 -45,-70 -35,-70 L35,-70 C45,-70 55,-65 55,-55 L55,35 C55,45 45,50 35,50 L-35,50 C-45,50 -55,45 -55,35 Z" stroke-width="2.5"/>
+    <!-- 卷轴内框 -->
+    <path d="M-48,-50 C-48,-58 -40,-62 -30,-62 L30,-62 C40,-62 48,-58 48,-50 L48,30 C48,38 40,42 30,42 L-30,42 C-40,42 -48,38 -48,30 Z" stroke-width="1"/>
+    <!-- 卷轴杆 -->
+    <ellipse cx="-62" cy="-10" rx="5" ry="32" stroke-width="2"/>
+    <ellipse cx="62" cy="-10" rx="5" ry="32" stroke-width="2"/>
+    <path d="M-67,-35 L-57,-35 M-67,15 L-57,15 M57,-35 L67,-35 M57,15 L67,15" stroke-width="1"/>
+    <!-- 横向纹理 -->
+    <path d="M-40,-45 L40,-45 M-42,-30 L42,-30 M-44,-15 L44,-15 M-45,0 L45,0 M-44,15 L44,15 M-42,30 L42,30" stroke-width="0.6"/>
+    <!-- 纵向纹理 -->
+    <path d="M-25,-62 L-25,42 M0,-62 L0,42 M25,-62 L25,42" stroke-width="0.4"/>
+    <!-- 编织纹理 -->
+    <path d="M-15,-38 L-5,-28 M-5,-38 L-15,-28 M5,-38 L15,-28 M15,-38 L5,-28 M-15,-8 L-5,2 M-5,-8 L-15,2 M5,-8 L15,2 M15,-8 L5,2 M-15,22 L-5,32 M-5,22 L-15,32 M5,22 L15,32 M15,22 L5,32" stroke-width="0.5"/>
+    <!-- 荷鲁斯之眼 -->
+    <path d="M-18,-8 Q0,-18 18,-8 Q0,2 -18,-8 Z" stroke-width="1.2"/>
+    <circle cx="0" cy="-8" r="3.5" stroke-width="1"/>
+    <circle cx="0" cy="-8" r="1.5" fill="#1a120b" stroke="none"/>
+    <!-- 羽毛 -->
+    <path d="M-12,12 Q-6,8 0,14 Q6,8 12,12" stroke-width="1"/>
+    <path d="M-8,20 Q-4,16 0,22 Q4,16 8,20" stroke-width="0.7"/>
+  </g>
+  <text x="100" y="175" text-anchor="middle" font-family="'Cinzel','Trajan Pro','Times New Roman',serif" font-size="11" letter-spacing="5" fill="none" stroke="#1a120b" stroke-width="0.7" style="font-variant:small-caps;">PAPYRUS</text>
+</svg>

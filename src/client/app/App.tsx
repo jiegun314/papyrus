@@ -8,6 +8,7 @@ import { LendingsPage } from '../features/lendings/LendingsPage';
 import { ShelfPage } from '../features/shelf/ShelfPage';
 import { TagsPage } from '../features/tags/TagsPage';
 import { CategoriesPage } from '../features/categories/CategoriesPage';
+import { PapyrusMark } from '../components/PapyrusMark';
 import { useRefresh } from './refresh';
 
 function navClass(isActive: boolean): string {
@@ -31,7 +32,7 @@ export function App() {
       <header className="app-header">
         <div className="header-inner">
           <Link to="/" className="brand" title="返回书架">
-            <span className="brand-icon">📚</span>
+            <PapyrusMark className="brand-icon" />
             <span className="brand-name">Papyrus</span>
             <span className="brand-sub">个人书斋</span>
           </Link>
