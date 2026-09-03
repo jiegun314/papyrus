@@ -58,9 +58,12 @@ body {
   gap: 28px;
 }
 .brand { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
-.brand-icon { width: 30px; height: 30px; color: var(--accent); object-fit: contain; border-radius: 6px; }
+.brand-icon { height: 44px; width: auto; flex: none; object-fit: contain; }
 .brand-name { font-family: var(--serif); font-size: 24px; font-weight: 700; letter-spacing: .5px; color: var(--accent); }
 .brand-sub { font-size: 12px; color: var(--ink-faint); letter-spacing: 2px; }
+@media (max-width: 640px) {
+  .brand-icon { height: 34px; }
+}
 
 .nav-tabs { display: flex; gap: 4px; margin-left: 8px; flex: 1; }
 .nav-tab {

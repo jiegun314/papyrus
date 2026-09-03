@@ -31,8 +31,6 @@ export function App() {
         <div className="header-inner">
           <Link to="/" className="brand" title="返回书架">
             <img src="/logo.png" className="brand-icon" alt="Papyrus" />
-            <span className="brand-name">Papyrus</span>
-            <span className="brand-sub">个人书斋</span>
           </Link>
           <nav className="nav-tabs">
             <NavLink to="/" end className={({ isActive }) => navClass(isActive)}>
