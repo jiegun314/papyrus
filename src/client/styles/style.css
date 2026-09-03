@@ -3,22 +3,22 @@
    ============================================================ */
 
 :root {
-  --bg: #f6f1e7;
-  --bg-deep: #efe7d8;
-  --card: #fffdf8;
-  --ink: #3d3730;
-  --ink-soft: #7a7062;
-  --ink-faint: #a89f90;
-  --accent: #b4532a;
-  --accent-dark: #96411f;
-  --accent-soft: #f3e3d7;
-  --teal: #3a7ca5;
-  --green: #5b8c5a;
+  --bg: #f2efe7;
+  --bg-deep: #e7e3d9;
+  --card: #ffffff;
+  --ink: #2e4258;
+  --ink-soft: #5a6d7d;
+  --ink-faint: #94a1a3;
+  --accent: #3368a0;
+  --accent-dark: #2a527e;
+  --accent-soft: #dbe8f0;
+  --teal: #66a3bf;
+  --green: #6d9c84;
   --danger: #c0392b;
   --gold: #c79a3d;
-  --line: #e6dccb;
-  --shadow: 0 1px 2px rgba(61,55,48,.05), 0 6px 20px rgba(61,55,48,.07);
-  --shadow-lg: 0 4px 10px rgba(61,55,48,.08), 0 20px 50px rgba(61,55,48,.16);
+  --line: #dadbcf;
+  --shadow: 0 1px 2px rgba(46,66,88,.05), 0 6px 20px rgba(46,66,88,.07);
+  --shadow-lg: 0 4px 10px rgba(46,66,88,.08), 0 20px 50px rgba(46,66,88,.16);
   --radius: 12px;
   --serif: "Songti SC","Noto Serif SC","STSong",Georgia,"Times New Roman",serif;
   --sans: -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",sans-serif;
@@ -30,8 +30,8 @@ html, body { height: 100%; }
 body {
   font-family: var(--sans);
   background:
-    radial-gradient(1200px 500px at 20% -10%, rgba(180,83,42,.06), transparent 60%),
-    radial-gradient(1000px 400px at 90% 0%, rgba(58,124,165,.06), transparent 55%),
+    radial-gradient(1200px 500px at 20% -8%, rgba(51,104,160,.08), transparent 60%),
+    radial-gradient(1000px 400px at 90% 0%, rgba(102,163,191,.08), transparent 55%),
     var(--bg);
   color: var(--ink);
   font-size: 15px;
@@ -45,7 +45,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(255,253,248,.86);
+  background: rgba(242,239,231,.86);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--line);
 }
@@ -79,7 +79,7 @@ body {
   font-family: var(--sans);
 }
 .nav-tab:hover { background: var(--bg-deep); color: var(--ink); }
-.nav-tab.active { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(180,83,42,.3); }
+.nav-tab.active { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(51,104,160,.28); }
 
 /* ---------- 按钮 ---------- */
 
@@ -194,7 +194,7 @@ button.stat-card.clickable { cursor: pointer; }
   transition: border-color .16s, box-shadow .16s;
   font-family: var(--sans);
 }
-.search-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(180,83,42,.12); }
+.search-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(51,104,160,.12); }
 .search-box .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--ink-faint); pointer-events: none; }
 
 .select {
@@ -284,12 +284,12 @@ button.stat-card.clickable { cursor: pointer; }
   font-size: 12px;
   font-weight: 600;
   color: #fff;
-  background: rgba(122,112,98,.78);
+  background: rgba(90,109,125,.78);
   backdrop-filter: blur(4px);
 }
 /* 阅读状态配色：未读=灰 / 阅读中=蓝 / 已读=绿 / 放弃=红 */
-.book-cover .reading-badge.reading { background: rgba(58,124,165,.92); }
-.book-cover .reading-badge.read { background: rgba(91,140,90,.92); }
+.book-cover .reading-badge.reading { background: rgba(102,163,191,.92); }
+.book-cover .reading-badge.read { background: rgba(109,156,132,.92); }
 .book-cover .reading-badge.abandoned { background: rgba(192,57,43,.85); }
 
 .book-meta { padding: 10px 4px 0; }
@@ -361,7 +361,7 @@ button.stat-card.clickable { cursor: pointer; }
   outline: none;
   font-family: var(--sans);
 }
-.add-form input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(180,83,42,.12); }
+.add-form input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(51,104,160,.12); }
 /* 原生颜色输入：去掉默认边框，只让内层色块显示为一个小圆 */
 .add-form input[type="color"] {
   width: 30px;
@@ -383,7 +383,7 @@ button.stat-card.clickable { cursor: pointer; }
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(40,34,27,.45);
+  background: rgba(40,52,66,.45);
   backdrop-filter: blur(3px);
   display: flex;
   align-items: flex-start;
@@ -450,7 +450,7 @@ button.stat-card.clickable { cursor: pointer; }
 }
 .form-field input:focus, .form-field select:focus, .form-field textarea:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(180,83,42,.12);
+  box-shadow: 0 0 0 3px rgba(51,104,160,.12);
 }
 .form-field textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
 .form-field input[type="color"] { padding: 2px; height: 40px; cursor: pointer; }
@@ -488,7 +488,7 @@ button.stat-card.clickable { cursor: pointer; }
   aspect-ratio: 2 / 3;
   border-radius: 10px;
   overflow: hidden;
-  background: linear-gradient(145deg, #eee5d6, #e2d5c2);
+  background: linear-gradient(145deg, #ecebe0, #d7e1dc);
   box-shadow: var(--shadow);
   display: flex;
   align-items: center;
@@ -497,7 +497,7 @@ button.stat-card.clickable { cursor: pointer; }
 .book-detail .detail-cover img { width: 100%; height: 100%; object-fit: cover; }
 .book-detail .detail-cover .cover-fallback { font-size: 56px; opacity: .5; }
 .book-detail .detail-cover.cover-retry { position: relative; cursor: pointer; }
-.book-detail .detail-cover.cover-retry:hover { box-shadow: 0 0 0 3px rgba(38,166,154,.35), var(--shadow); }
+.book-detail .detail-cover.cover-retry:hover { box-shadow: 0 0 0 3px rgba(102,163,191,.35), var(--shadow); }
 .book-detail .detail-cover.cover-retry::after {
   content: '点击重新下载封面';
   position: absolute;
@@ -563,7 +563,7 @@ button.stat-card.clickable { cursor: pointer; }
 
 /* 星级评分 */
 .stars { display: inline-flex; gap: 3px; font-size: 22px; line-height: 1; }
-.stars .star { cursor: pointer; color: #d9cfbb; transition: transform .12s, color .12s; }
+.stars .star { cursor: pointer; color: #d8d9cd; transition: transform .12s, color .12s; }
 .stars .star.on { color: var(--gold); }
 .stars .star:hover { transform: scale(1.2); }
 .stars.readonly .star { cursor: default; }
@@ -586,8 +586,8 @@ button.stat-card.clickable { cursor: pointer; }
 
 .toast-root { position: fixed; top: 20px; right: 20px; z-index: 300; display: flex; flex-direction: column; gap: 10px; }
 .toast {
-  background: #2c2721;
-  color: #f5f0e6;
+  background: #2e4258;
+  color: #f2efe7;
   padding: 11px 18px;
   border-radius: 10px;
   font-size: 14px;
@@ -649,7 +649,7 @@ button.stat-card.clickable { cursor: pointer; }
   align-items: center;
 }
 .douban-item:hover { border-color: var(--accent); box-shadow: var(--shadow); transform: translateY(-1px); }
-.douban-item img { width: 52px; height: 72px; object-fit: cover; border-radius: 5px; background: #eee5d6; flex-shrink: 0; }
+.douban-item img { width: 52px; height: 72px; object-fit: cover; border-radius: 5px; background: #e9ebdf; flex-shrink: 0; }
 .douban-item .db-title { font-weight: 700; font-family: var(--serif); font-size: 15px; }
 .douban-item .db-meta { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
 .douban-item .db-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
@@ -666,12 +666,12 @@ button.stat-card.clickable { cursor: pointer; }
   padding: 16px;
   margin-top: 14px;
 }
-.preview-panel .pv-cover { aspect-ratio: 2/3; border-radius: 8px; overflow: hidden; background: #eee5d6; display: flex; align-items: center; justify-content: center; }
+.preview-panel .pv-cover { aspect-ratio: 2/3; border-radius: 8px; overflow: hidden; background: #e9ebdf; display: flex; align-items: center; justify-content: center; }
 .preview-panel .pv-cover img { width: 100%; height: 100%; object-fit: cover; }
 .preview-panel .pv-info { font-size: 13.5px; display: flex; flex-direction: column; gap: 4px; }
 .preview-panel .pv-title { font-family: var(--serif); font-size: 17px; font-weight: 700; }
 .preview-panel .pv-meta { color: var(--ink-soft); font-size: 12.5px; }
-.preview-panel .pv-rating { color: #e67e22; font-weight: 700; }
+.preview-panel .pv-rating { color: var(--gold); font-weight: 700; }
 .preview-panel .pv-summary { color: var(--ink-soft); font-size: 13px; max-height: 90px; overflow-y: auto; line-height: 1.7; }
 
 /* ---------- 响应式 ---------- */

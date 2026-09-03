@@ -13,7 +13,7 @@ import { useToast } from '../../components/Toast';
 import { useRefresh } from '../../app/refresh';
 import { BooksByFilterModal } from '../books/BooksByFilterModal';
 
-const PALETTE = ['#b4552d', '#2d6a4f', '#1d4e89', '#8d5a2a', '#6d597a', '#2c3e50', '#a45c40', '#3a5a40'];
+const PALETTE = ['#3368a0', '#66a3bf', '#6d9c84', '#c79a3d', '#a5774e', '#8a7bb0', '#b0769c', '#5a6b78'];
 
 export function CategoriesPage() {
   const toast = useToast();

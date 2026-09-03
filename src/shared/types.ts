@@ -52,7 +52,7 @@ export interface Book {
 export interface Category {
   id: number;
   name: string;
-  color: string; // CSS 颜色，如 "#b4532a"
+  color: string; // CSS 颜色，如 "#3368a0"
   bookCount?: number; // 附带书籍数量
   createdAt: string;
 }

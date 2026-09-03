@@ -10,7 +10,7 @@ export const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS categories (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   name        TEXT NOT NULL UNIQUE,
-  color       TEXT NOT NULL DEFAULT '#b4532a',
+  color       TEXT NOT NULL DEFAULT '#3368a0',
   created_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
@@ -78,11 +78,11 @@ CREATE INDEX IF NOT EXISTS idx_reviews_book ON reviews(book_id);
 
 /** 默认分类（首次启动时写入） */
 export const DEFAULT_CATEGORIES: { name: string; color: string }[] = [
-  { name: '小说', color: '#b4532a' },
-  { name: '文学', color: '#8d6e63' },
-  { name: '历史', color: '#5b8c5a' },
-  { name: '科技', color: '#3a7ca5' },
-  { name: '艺术', color: '#a571b6' },
+  { name: '小说', color: '#3368a0' },
+  { name: '文学', color: '#8a7bb0' },
+  { name: '历史', color: '#a5774e' },
+  { name: '科技', color: '#66a3bf' },
+  { name: '艺术', color: '#b0769c' },
   { name: '生活', color: '#c79a3d' },
-  { name: '其他', color: '#6b7280' },
+  { name: '其他', color: '#5a6b78' },
 ];
