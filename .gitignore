@@ -1,16 +1,11 @@
 node_modules/
 .npm-cache/
 dist/
-public/app.js
-public/app.css
-public/*.map
 data/*.db
 data/*.db-journal
 data/*.db-wal
 data/*.db-shm
-data/covers/*.jpg
-data/covers/*.png
-data/covers/*.webp
+data/covers/
 data/ebooks/
 .DS_Store
 *.log
