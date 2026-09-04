@@ -172,7 +172,7 @@ export function createBook(
     authorIntro: input.authorIntro?.trim() || null,
     catalog: input.catalog?.trim() || null,
     coverUrl: input.coverUrl ?? null,
-    coverPath: null, // 封面由调用方在插入后单独下载
+    coverPath: input.coverPath ?? null, // 手动录入时可携带上传后的本地封面路径
     ratingAverage: input.ratingAverage ?? null,
     ratingCount: input.ratingCount ?? null,
     doubanUrl: input.doubanUrl ?? null,
@@ -196,6 +196,7 @@ export function updateBook(id: number, input: BookInput): Book | null {
     binding: 'binding', series: 'series', summary: 'summary', authorIntro: 'author_intro',
     catalog: 'catalog', isbn13: 'isbn13', isbn10: 'isbn10', categoryId: 'category_id',
     readingStatus: 'reading_status', notes: 'notes',
+    coverUrl: 'cover_url', coverPath: 'cover_path',
   };
   for (const key of Object.keys(map)) {
     if (key in input && input[key as keyof BookInput] !== undefined) {
@@ -208,9 +209,17 @@ export function updateBook(id: number, input: BookInput): Book | null {
     params.authors = stringifyAuthors(input.authors);
   }
   if (fields.length === 0) return getBook(id);
+  // 封面被替换时，事后清理旧文件（避免磁盘上残留孤儿封面）
+  const coverChanged =
+    'coverPath' in input &&
+    input.coverPath !== undefined &&
+    (input.coverPath ?? null) !== (getBook(id)?.coverPath ?? null);
+  const prevCover = getBook(id)?.coverPath ?? null;
   fields.push("updated_at = datetime('now','localtime')");
   db.prepare(`UPDATE books SET ${fields.join(', ')} WHERE id = @id`).run(params);
-  return getBook(id);
+  const next = getBook(id);
+  if (coverChanged && prevCover) removeCover(prevCover);
+  return next;
 }
 
 /** 设置书籍封面本地路径（豆瓣导入后调用） */

@@ -9,6 +9,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { COVERS_DIR } from '../db/index.js';
 
 /** 下载封面到本地，返回本地访问路径（如 /covers/abc123.jpg）；失败返回 null */
@@ -46,6 +47,45 @@ export async function downloadCover(
   } catch {
     return null;
   }
+}
+
+/**
+ * 保存用户手动上传的封面图片（二进制体）到本地，返回可访问路径（/covers/xxx）。
+ * 文件名以原始文件名做基底并附加随机后缀，避免覆盖已有封面；失败返回 null。
+ */
+export function saveCoverImage(
+  buf: Buffer,
+  mimeType: string,
+  originalName?: string
+): string | null {
+  if (!buf || !Buffer.isBuffer(buf) || buf.length < 100) return null; // 过小多半不是有效图片
+  const ext = extensionFor(mimeType, originalName);
+  // 去掉原始文件名里的扩展名，作为文件名基底（便于识别来源）
+  const base = sanitize((originalName || 'cover').replace(/\.[^.]+$/, '')) || 'cover';
+  const filename = `${base}-${randomUUID().slice(0, 8)}${ext}`;
+  const target = path.join(COVERS_DIR, filename);
+  try {
+    fs.writeFileSync(target, buf);
+    return `/covers/${filename}`;
+  } catch {
+    return null;
+  }
+}
+
+/** 根据 MIME 类型 / 原始文件名推断扩展名 */
+function extensionFor(mimeType: string, originalName?: string): string {
+  const byMime: Record<string, string> = {
+    'image/jpeg': '.jpg',
+    'image/jpg': '.jpg',
+    'image/png': '.png',
+    'image/webp': '.webp',
+    'image/gif': '.gif',
+    'image/avif': '.avif',
+  };
+  const mime = mimeType.split(';')[0].trim().toLowerCase();
+  if (byMime[mime]) return byMime[mime];
+  const m = (originalName || '').match(/\.(jpe?g|png|webp|gif|avif)$/i);
+  return m ? `.${m[1].toLowerCase()}` : '.jpg';
 }
 
 /** 根据 URL 推断扩展名 */

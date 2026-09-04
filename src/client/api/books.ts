@@ -39,6 +39,15 @@ export function createBook(input: BookInput): Promise<Book> {
   return request<Book>('/api/books', { method: 'POST', body: JSON.stringify(input) });
 }
 
+/** 手动上传封面图片，返回本地访问路径（/covers/xxx） */
+export function uploadCover(file: File): Promise<{ coverPath: string }> {
+  return request<{ coverPath: string }>('/api/books/upload-cover', {
+    method: 'POST',
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    body: file,
+  });
+}
+
 /** 更新书籍信息 */
 export function updateBook(id: number, input: Partial<BookInput>): Promise<Book> {
   return request<Book>(`/api/books/${id}`, { method: 'PUT', body: JSON.stringify(input) });

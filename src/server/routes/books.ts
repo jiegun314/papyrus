@@ -3,13 +3,13 @@
  * ------------------------------------------------------------------
  * 书籍相关 API：增删改查、标签、归类、阅读状态、书评。
  */
-import { Router } from 'express';
+import { Router, raw } from 'express';
 import {
   listBooks, getBook, createBook, updateBook, deleteBook,
   setBookTags, setBookCategory, setBookCoverPath,
   addReview, updateReview, deleteReview,
 } from '../services/bookService.js';
-import { downloadCover } from '../services/cover.js';
+import { downloadCover, saveCoverImage } from '../services/cover.js';
 import { fetchBookDetail, fetchBookByIsbn } from '../services/douban.js';
 import type { BookInput, ReadingStatus } from '../../shared/types.js';
 
@@ -62,6 +62,26 @@ booksRouter.post('/', (req, res) => {
     res.status(500).json({ error: e.message || '保存失败' });
   }
 });
+
+/* ---------- 手动上传封面 ---------- */
+
+// POST /api/books/upload-cover —— 接收上传的封面图片二进制体，保存到本地并返回访问路径。
+// 表单直接以图片的原始二进制作为请求体（Content-Type: image/*），故用 raw 解析；无需 multer。
+booksRouter.post(
+  '/upload-cover',
+  raw({ type: ['image/*', 'application/octet-stream'], limit: '20mb' }),
+  (req, res) => {
+    const buf = req.body as Buffer;
+    if (!Buffer.isBuffer(buf) || buf.length < 100) {
+      return res.status(400).json({ error: '请选择有效的封面图片' });
+    }
+    const mime = (req.headers['content-type'] as string) || '';
+    const name = typeof req.query.name === 'string' ? req.query.name : 'cover';
+    const coverPath = saveCoverImage(buf, mime, name);
+    if (!coverPath) return res.status(500).json({ error: '封面保存失败，请重试' });
+    res.json({ coverPath });
+  }
+);
 
 /* ---------- 修改 / 删除 ---------- */
 

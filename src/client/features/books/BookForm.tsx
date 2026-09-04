@@ -2,7 +2,11 @@
  * features/books/BookForm.tsx —— 手动录入表单（新增 / 编辑共用）。
  * 采用「受控字段组件 + 纯数据转换」设计：状态由父级持有，组件只负责渲染。
  */
+import { useRef, useState, type ChangeEvent } from 'react';
 import type { Book, BookInput, Category, ReadingStatus } from '../../../shared/types';
+import { uploadCover } from '../../api/books';
+import { errorMessage } from '../../api/http';
+import { useToast } from '../../components/Toast';
 import { READING_STATUS_OPTIONS, READING_STATUS_TEXT } from '../../lib/readingStatus';
 
 /** 表单原始值（输入框字符串状态） */
@@ -19,6 +23,8 @@ export interface BookFormValues {
   readingStatus: ReadingStatus;
   summary: string;
   notes: string;
+  /** 本地封面路径（/covers/xxx）；'' 表示无封面 */
+  coverPath: string;
 }
 
 export function emptyBookFormValues(): BookFormValues {
@@ -35,6 +41,7 @@ export function emptyBookFormValues(): BookFormValues {
     readingStatus: 'unread',
     summary: '',
     notes: '',
+    coverPath: '',
   };
 }
 
@@ -53,6 +60,7 @@ export function bookFormValuesFrom(initial?: Partial<Book> | null): BookFormValu
   v.readingStatus = initial.readingStatus ?? 'unread';
   v.summary = initial.summary ?? '';
   v.notes = initial.notes ?? '';
+  v.coverPath = initial.coverPath ?? '';
   return v;
 }
 
@@ -74,6 +82,7 @@ export function readBookFormValues(v: BookFormValues): BookInput {
     readingStatus: v.readingStatus,
     summary: v.summary.trim() || undefined,
     notes: v.notes.trim() || undefined,
+    coverPath: v.coverPath || null,
   };
 }
 
@@ -102,18 +111,98 @@ function TextField({ label, value, required, full, type = 'text', onChange }: Te
   );
 }
 
+function CoverField({
+  value,
+  onChange,
+  onRefreshOnline,
+  refreshBusy,
+}: {
+  value: string;
+  onChange: (path: string) => void;
+  /** 传入后显示「刷新在线封面」按钮（编辑已有书籍时使用） */
+  onRefreshOnline?: () => void;
+  refreshBusy?: boolean;
+}) {
+  const toast = useToast();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const pick = () => inputRef.current?.click();
+
+  const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // 允许重复选同一文件
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { coverPath } = await uploadCover(file);
+      onChange(coverPath);
+      toast('封面已上传，保存后即生效', 'success');
+    } catch (err) {
+      toast(errorMessage(err), 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="form-field full">
+      <label>封面</label>
+      <div className="cover-field">
+        <div className="cover-field-preview">
+          {value ? <img src={value} alt="封面预览" /> : <span className="cover-fallback">📖</span>}
+        </div>
+        <div className="cover-field-actions">
+          <button type="button" className="btn" onClick={pick} disabled={uploading}>
+            {uploading ? '上传中…' : '📤 上传封面'}
+          </button>
+          {value ? (
+            <button type="button" className="btn-link danger" onClick={() => onChange('')}>
+              清除封面
+            </button>
+          ) : null}
+          {onRefreshOnline ? (
+            <button type="button" className="btn" onClick={onRefreshOnline} disabled={refreshBusy}>
+              {refreshBusy ? '获取中…' : '🔄 刷新在线封面'}
+            </button>
+          ) : null}
+          <span className="cover-field-hint">支持 JPG / PNG / WebP / GIF</span>
+        </div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+          hidden
+          onChange={onFile}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function BookFormFields({
   values,
   categories,
   onChange,
+  onRefreshOnline,
+  refreshBusy,
 }: {
   values: BookFormValues;
   categories: Category[];
   onChange: (patch: Partial<BookFormValues>) => void;
+  /** 编辑已有书籍时传入，用于「刷新在线封面」 */
+  onRefreshOnline?: () => void;
+  refreshBusy?: boolean;
 }) {
   const set = (key: keyof BookFormValues) => (val: string) => onChange({ [key]: val });
   return (
     <div className="form-grid">
+      <CoverField
+        value={values.coverPath}
+        onChange={(path) => onChange({ coverPath: path })}
+        onRefreshOnline={onRefreshOnline}
+        refreshBusy={refreshBusy}
+      />
       <TextField label="书名" required full value={values.title} onChange={set('title')} />
       <TextField
         label="作者（多个用逗号分隔）"

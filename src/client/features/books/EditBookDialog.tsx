@@ -3,7 +3,7 @@
  */
 import { useEffect, useState } from 'react';
 import type { Book, Category } from '../../../shared/types';
-import { updateBook } from '../../api/books';
+import { updateBook, retryCover } from '../../api/books';
 import { errorMessage } from '../../api/http';
 import { Modal } from '../../components/Modal';
 import { useToast } from '../../components/Toast';
@@ -26,13 +26,30 @@ export function EditBookDialog({
   const toast = useToast();
   const [values, setValues] = useState(() => bookFormValuesFrom(book));
   const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (open) {
       setValues(bookFormValuesFrom(book));
       setBusy(false);
+      setRefreshing(false);
     }
   }, [open, book]);
+
+  /** 重新从数据源（豆瓣/Amazon）获取封面并更新表单预览 */
+  const refreshCover = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      const updated = await retryCover(book.id);
+      setValues((prev) => ({ ...prev, coverPath: updated.coverPath ?? '' }));
+      toast('已获取在线封面', 'success');
+    } catch (e) {
+      toast(errorMessage(e), 'error');
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const save = async () => {
     const data = readBookFormValues(values);
@@ -71,6 +88,8 @@ export function EditBookDialog({
         values={values}
         categories={categories}
         onChange={(patch) => setValues((prev) => ({ ...prev, ...patch }))}
+        onRefreshOnline={refreshCover}
+        refreshBusy={refreshing}
       />
     </Modal>
   );
