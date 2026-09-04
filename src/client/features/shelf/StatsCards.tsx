@@ -1,6 +1,7 @@
 /**
- * features/shelf/StatsCards.tsx —— 书架统计卡片行。
- * 数量 > 0 时可点击，弹出对应书籍清单。
+ * features/shelf/StatsCards.tsx —— 书架统计卡片（左侧分栏）。
+ * 按三个语义分组展示：藏书总数 / 载体类型 / 阅读状态；
+ * 每组数量 > 0 时可点击，弹出对应书籍清单。
  */
 import type { BookQuery, ReadingStatus, Stats } from '../../../shared/types';
 import { READING_STATUS_OPTIONS, READING_STATUS_TEXT } from '../../lib/readingStatus';
@@ -13,6 +14,39 @@ const READING_COLOR: Record<ReadingStatus, string> = {
   abandoned: 'danger',
 };
 
+interface StatDef {
+  label: string;
+  count: number;
+  color?: string;
+  action: { kind: 'list'; title: string; query: BookQuery };
+}
+
+/** 单个统计卡片：数量 > 0 时可点击弹清单，否则静态展示 */
+function StatCard({
+  def,
+  onOpenList,
+}: {
+  def: StatDef;
+  onOpenList: (title: string, query: BookQuery) => void;
+}) {
+  const clickable = def.count > 0;
+  const title = clickable ? `查看${def.action.title}` : undefined;
+  const onClick = clickable ? () => onOpenList(def.action.title, def.action.query) : undefined;
+  const inner = (
+    <>
+      <div className="stat-label">{def.label}</div>
+      <div className={`stat-num ${def.color ?? ''}`}>{def.count}</div>
+    </>
+  );
+  return clickable ? (
+    <button type="button" className="stat-card clickable" title={title} onClick={onClick}>
+      {inner}
+    </button>
+  ) : (
+    <div className="stat-card">{inner}</div>
+  );
+}
+
 export function StatsCards({
   stats,
   onOpenList,
@@ -20,45 +54,44 @@ export function StatsCards({
   stats: Stats;
   onOpenList: (title: string, query: BookQuery) => void;
 }) {
-  const defs: Array<{
-    label: string;
-    count: number;
-    color?: string;
-    action: { kind: 'list'; title: string; query: BookQuery };
-  }> = [
-    { label: '藏书总数', count: stats.totalBooks, action: { kind: 'list', title: '全部书籍', query: {} } },
+  // 组一：藏书总数
+  const totalDef: StatDef = {
+    label: '藏书总数',
+    count: stats.totalBooks,
+    action: { kind: 'list', title: '全部书籍', query: {} },
+  };
+
+  // 组二：载体类型
+  const typeDefs: StatDef[] = [
     { label: '实体书', count: stats.physicalCount, action: { kind: 'list', title: '实体书', query: { bookType: 'physical' } } },
     { label: '电子书', count: stats.ebookCount, color: 'teal', action: { kind: 'list', title: '电子书', query: { bookType: 'ebook' } } },
-    ...READING_STATUS_OPTIONS.map((s) => ({
-      label: READING_STATUS_TEXT[s],
-      count: stats[s],
-      color: READING_COLOR[s],
-      action: { kind: 'list' as const, title: `${READING_STATUS_TEXT[s]}书籍`, query: { readingStatus: s } },
-    })),
   ];
 
+  // 组三：阅读状态
+  const statusDefs: StatDef[] = READING_STATUS_OPTIONS.map((s) => ({
+    label: READING_STATUS_TEXT[s],
+    count: stats[s],
+    color: READING_COLOR[s],
+    action: { kind: 'list' as const, title: `${READING_STATUS_TEXT[s]}书籍`, query: { readingStatus: s } },
+  }));
+
+  const renderGroup = (title: string, defs: StatDef[]) => (
+    <section className="stats-group">
+      <h3 className="stats-group-title">{title}</h3>
+      <div className="stats-row">
+        {defs.map((def) => (
+          <StatCard key={def.label} def={def} onOpenList={onOpenList} />
+        ))}
+      </div>
+    </section>
+  );
+
   return (
-    <div className="stats-row">
-      {defs.map((d) => {
-        const clickable = d.count > 0;
-        const title = clickable ? `查看${d.action.title}` : undefined;
-        const onClick = clickable ? () => onOpenList(d.action.title, d.action.query) : undefined;
-        const inner = (
-          <>
-            <div className="stat-label">{d.label}</div>
-            <div className={`stat-num ${d.color ?? ''}`}>{d.count}</div>
-          </>
-        );
-        return clickable ? (
-          <button key={d.label} type="button" className="stat-card clickable" title={title} onClick={onClick}>
-            {inner}
-          </button>
-        ) : (
-          <div key={d.label} className="stat-card">
-            {inner}
-          </div>
-        );
-      })}
+    <div className="stats-groups">
+      {renderGroup('藏书', [totalDef])}
+      {renderGroup('载体', typeDefs)}
+      {renderGroup('阅读状态', statusDefs)}
     </div>
   );
 }
+

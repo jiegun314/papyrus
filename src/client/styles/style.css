@@ -167,6 +167,48 @@ button.stat-card.clickable { cursor: pointer; }
 .stat-card .stat-num.gray { color: var(--ink-soft); }
 .stat-card .stat-num.danger { color: var(--danger); }
 
+/* 统计分组：藏书总数 / 载体类型 / 阅读状态；组间用分隔线区分 */
+.stats-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.stats-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* 除第一组外，其余组上方用一条渐隐分隔线隔开 */
+.stats-group + .stats-group {
+  position: relative;
+  padding-top: 18px;
+}
+.stats-group + .stats-group::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(to right, var(--line), rgba(218, 219, 207, 0));
+}
+.stats-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--ink-faint);
+}
+/* 标题右侧补一条延伸线，构成「词 + 线」引导条 */
+.stats-group-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
 /* ---------- 筛选栏 ---------- */
 
 .filter-bar {
@@ -776,6 +818,8 @@ button.stat-card.clickable { cursor: pointer; }
     overflow: visible;
     margin-bottom: 24px;
   }
+  .stats-groups { flex-direction: column; gap: 16px; }
+  .stats-group { gap: 8px; }
   .stats-row { flex-direction: row; flex-wrap: wrap; gap: 10px; }
   .stats-row .stat-card { flex: 1 1 140px; }
 }
