@@ -271,7 +271,7 @@ button.stat-card.clickable { cursor: pointer; }
   width: 100%;
   height: 100%;
   object-fit: contain;          /* 等比缩放，不裁切；过大自动缩小，空余区域露出白色背景 */
-  object-position: top center;  /* 非 2:3 封面（如方形图）上缘对齐，避免整体居中导致看起来下移 */
+  object-position: center;      /* 非 2:3 封面（如方形图）居中，空白均匀分散在上下，避免单侧大面积露白 */
   display: block;
 }
 .book-cover .cover-fallback { font-size: 34px; opacity: .5; filter: grayscale(.3); }
