@@ -1,7 +1,7 @@
 /**
  * api/amazon.ts —— Amazon 导入相关接口（与 src/server/routes/amazon.ts 对应）。
  */
-import type { AmazonSearchResult, Book } from '../../shared/types';
+import type { AmazonSearchResult, Book, BookType } from '../../shared/types';
 import { request } from './http';
 
 /** 关键字搜索 */
@@ -22,6 +22,8 @@ export function amazonSave(payload: {
   asin?: string;
   isbn?: string;
   searchResult?: AmazonSearchResult;
+  /** 书籍载体类型：实体书 / 电子书（默认实体书） */
+  bookType?: BookType;
 }): Promise<{ book: Book; alreadyExists: boolean }> {
   return request('/api/amazon/save', { method: 'POST', body: JSON.stringify(payload) });
 }

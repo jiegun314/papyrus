@@ -90,6 +90,7 @@ export function EditBookDialog({
         onChange={(patch) => setValues((prev) => ({ ...prev, ...patch }))}
         onRefreshOnline={refreshCover}
         refreshBusy={refreshing}
+        bookId={book.id}
       />
     </Modal>
   );

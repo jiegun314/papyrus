@@ -4,6 +4,7 @@
 import type { Book } from '../../../shared/types';
 import { Cover } from '../../components/Cover';
 import { authorText, fmtRating } from '../../lib/format';
+import { BOOK_TYPE_TEXT } from '../../lib/bookType';
 import { READING_STATUS_TEXT } from '../../lib/readingStatus';
 
 export function BookCard({ book, onOpen }: { book: Book; onOpen: (id: number) => void }) {
@@ -24,6 +25,11 @@ export function BookCard({ book, onOpen }: { book: Book; onOpen: (id: number) =>
             />
           ) : null}
           <div className="book-title">{book.title}</div>
+          {book.bookType === 'ebook' ? (
+            <span className="ebook-badge" title={BOOK_TYPE_TEXT.ebook}>
+              {BOOK_TYPE_TEXT.ebook}
+            </span>
+          ) : null}
         </div>
         <div className="book-author">{authorText(book)}</div>
         {/* 评分行始终占位：无评分时留同等空白，保证所有卡片各行位置一致 */}

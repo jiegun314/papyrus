@@ -10,7 +10,7 @@ import { booksRouter } from './routes/books.js';
 import { doubanRouter } from './routes/douban.js';
 import { amazonRouter } from './routes/amazon.js';
 import { metaRouter } from './routes/meta.js';
-import { ROOT_DIR, COVERS_DIR, getDb } from './db/index.js';
+import { ROOT_DIR, COVERS_DIR, EBOOKS_DIR, getDb } from './db/index.js';
 
 export function createApp(): express.Express {
   const app = express();
@@ -27,6 +27,9 @@ export function createApp(): express.Express {
 
   // 本地封面缓存
   app.use('/covers', express.static(COVERS_DIR, { maxAge: '30d', immutable: true }));
+
+  // 电子书文件（在线预览：直接以静态资源暴露；下载走 /api/books/:id/ebook/download）
+  app.use('/ebooks', express.static(EBOOKS_DIR));
 
   // API 路由
   app.use('/api/books', booksRouter);
@@ -48,7 +51,7 @@ export function createApp(): express.Express {
     // SPA 兜底：浏览器路由（如 /tags 直接刷新）未匹配到文件时返回 index.html
     app.use((req, res, next) => {
       if (req.method !== 'GET') return next();
-      if (req.path.startsWith('/api/') || req.path.startsWith('/covers/')) return next();
+      if (req.path.startsWith('/api/') || req.path.startsWith('/covers/') || req.path.startsWith('/ebooks/')) return next();
       res.sendFile(clientIndex, (err) => {
         if (err) next();
       });

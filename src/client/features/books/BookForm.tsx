@@ -3,11 +3,13 @@
  * 采用「受控字段组件 + 纯数据转换」设计：状态由父级持有，组件只负责渲染。
  */
 import { useRef, useState, type ChangeEvent } from 'react';
-import type { Book, BookInput, Category, ReadingStatus } from '../../../shared/types';
-import { uploadCover } from '../../api/books';
+import type { Book, BookInput, BookType, Category, ReadingStatus } from '../../../shared/types';
+import { ebookDownloadUrl, uploadCover, uploadEbook } from '../../api/books';
 import { errorMessage } from '../../api/http';
 import { useToast } from '../../components/Toast';
+import { BOOK_TYPE_OPTIONS, BOOK_TYPE_TEXT } from '../../lib/bookType';
 import { READING_STATUS_OPTIONS, READING_STATUS_TEXT } from '../../lib/readingStatus';
+import { fmtBytes } from '../../lib/format';
 
 /** 表单原始值（输入框字符串状态） */
 export interface BookFormValues {
@@ -21,10 +23,18 @@ export interface BookFormValues {
   isbn: string;
   category: string; // '' 或分类 id 字符串
   readingStatus: ReadingStatus;
+  /** 书籍载体类型：实体书 / 电子书 */
+  bookType: BookType;
   summary: string;
   notes: string;
   /** 本地封面路径（/covers/xxx）；'' 表示无封面 */
   coverPath: string;
+  /** 电子书文件地址（/ebooks/xxx）；'' 表示未上传 */
+  ebookPath: string;
+  /** 电子书原始文件名 */
+  ebookFilename: string;
+  /** 电子书文件大小（字节） */
+  ebookSize: number;
 }
 
 export function emptyBookFormValues(): BookFormValues {
@@ -39,9 +49,13 @@ export function emptyBookFormValues(): BookFormValues {
     isbn: '',
     category: '',
     readingStatus: 'unread',
+    bookType: 'physical',
     summary: '',
     notes: '',
     coverPath: '',
+    ebookPath: '',
+    ebookFilename: '',
+    ebookSize: 0,
   };
 }
 
@@ -58,9 +72,13 @@ export function bookFormValuesFrom(initial?: Partial<Book> | null): BookFormValu
   v.isbn = initial.isbn13 ?? '';
   v.category = initial.categoryId != null ? String(initial.categoryId) : '';
   v.readingStatus = initial.readingStatus ?? 'unread';
+  v.bookType = initial.bookType ?? 'physical';
   v.summary = initial.summary ?? '';
   v.notes = initial.notes ?? '';
   v.coverPath = initial.coverPath ?? '';
+  v.ebookPath = initial.ebookPath ?? '';
+  v.ebookFilename = initial.ebookFilename ?? '';
+  v.ebookSize = initial.ebookSize ?? 0;
   return v;
 }
 
@@ -80,9 +98,13 @@ export function readBookFormValues(v: BookFormValues): BookInput {
     isbn13: v.isbn.trim() || undefined,
     categoryId: v.category ? Number(v.category) : null,
     readingStatus: v.readingStatus,
+    bookType: v.bookType,
     summary: v.summary.trim() || undefined,
     notes: v.notes.trim() || undefined,
     coverPath: v.coverPath || null,
+    ebookPath: v.ebookPath || null,
+    ebookFilename: v.ebookFilename || null,
+    ebookSize: v.ebookSize || null,
   };
 }
 
@@ -180,12 +202,100 @@ function CoverField({
   );
 }
 
+function EbookField({
+  ebookPath,
+  ebookFilename,
+  ebookSize,
+  bookId,
+  onChange,
+}: {
+  ebookPath: string;
+  ebookFilename: string;
+  ebookSize: number;
+  /** 编辑已有书籍时传入，用于生成「下载」地址 */
+  bookId?: number;
+  onChange: (patch: { ebookPath: string; ebookFilename: string; ebookSize: number }) => void;
+}) {
+  const toast = useToast();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const pick = () => inputRef.current?.click();
+
+  const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // 允许重复选同一文件
+    if (!file) return;
+    setUploading(true);
+    try {
+      const r = await uploadEbook(file);
+      onChange({ ebookPath: r.ebookPath, ebookFilename: r.ebookFilename, ebookSize: r.ebookSize });
+      toast('电子书已上传，保存后即生效', 'success');
+    } catch (err) {
+      toast(errorMessage(err), 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // 编辑模式用下载接口（原始文件名），新增模式直接用静态预览地址
+  const downloadHref = bookId != null ? ebookDownloadUrl(bookId) : ebookPath;
+
+  return (
+    <div className="form-field full">
+      <label>电子书文件</label>
+      <div className="ebook-field">
+        <div className="ebook-field-actions">
+          <button type="button" className="btn" onClick={pick} disabled={uploading}>
+            {uploading ? '上传中…' : '📚 上传电子书'}
+          </button>
+          {ebookPath ? (
+            <>
+              <a className="btn-link" href={ebookPath} target="_blank" rel="noreferrer">
+                查看
+              </a>
+              <a className="btn-link" href={downloadHref}>
+                下载
+              </a>
+              <button
+                type="button"
+                className="btn-link danger"
+                onClick={() => onChange({ ebookPath: '', ebookFilename: '', ebookSize: 0 })}
+              >
+                移除
+              </button>
+            </>
+          ) : null}
+          <span className="cover-field-hint">支持 PDF / EPUB / MOBI / AZW3 / TXT 等，单文件 ≤ 100MB</span>
+        </div>
+        {ebookPath ? (
+          <div className="ebook-file-chip">
+            <span className="ebook-file-icon">📕</span>
+            <span className="ebook-file-name" title={ebookFilename}>
+              {ebookFilename}
+            </span>
+            {ebookSize ? <span className="ebook-file-size">{fmtBytes(ebookSize)}</span> : null}
+          </div>
+        ) : null}
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".pdf,.epub,.mobi,.azw3,.txt,.docx,.doc,.rtf,application/pdf,application/epub+zip,text/plain"
+          hidden
+          onChange={onFile}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function BookFormFields({
   values,
   categories,
   onChange,
   onRefreshOnline,
   refreshBusy,
+  bookId,
 }: {
   values: BookFormValues;
   categories: Category[];
@@ -193,6 +303,8 @@ export function BookFormFields({
   /** 编辑已有书籍时传入，用于「刷新在线封面」 */
   onRefreshOnline?: () => void;
   refreshBusy?: boolean;
+  /** 编辑已有书籍时传入，用于生成电子书「下载」地址 */
+  bookId?: number;
 }) {
   const set = (key: keyof BookFormValues) => (val: string) => onChange({ [key]: val });
   return (
@@ -240,6 +352,30 @@ export function BookFormFields({
           ))}
         </select>
       </div>
+      <div className="form-field full">
+        <label>书籍类型</label>
+        <div className="seg-group">
+          {BOOK_TYPE_OPTIONS.map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={`seg-btn${values.bookType === t ? ' active' : ''}`}
+              onClick={() => onChange({ bookType: t })}
+            >
+              {BOOK_TYPE_TEXT[t]}
+            </button>
+          ))}
+        </div>
+      </div>
+      {values.bookType === 'ebook' ? (
+        <EbookField
+          ebookPath={values.ebookPath}
+          ebookFilename={values.ebookFilename}
+          ebookSize={values.ebookSize}
+          bookId={bookId}
+          onChange={(patch) => onChange(patch)}
+        />
+      ) : null}
       <div className="form-field full">
         <label>内容简介</label>
         <textarea value={values.summary} onChange={(e) => onChange({ summary: e.target.value })} />

@@ -1,7 +1,7 @@
 /**
  * api/douban.ts —— 豆瓣导入相关接口（与 src/server/routes/douban.ts 对应）。
  */
-import type { Book, DoubanSearchResult } from '../../shared/types';
+import type { Book, BookType, DoubanSearchResult } from '../../shared/types';
 import { request } from './http';
 
 /** 关键字搜索联想 */
@@ -22,6 +22,8 @@ export function doubanSave(payload: {
   isbn?: string;
   id?: string;
   searchResult?: DoubanSearchResult;
+  /** 书籍载体类型：实体书 / 电子书（默认实体书） */
+  bookType?: BookType;
 }): Promise<{ book: Book; alreadyExists: boolean }> {
   return request('/api/douban/save', { method: 'POST', body: JSON.stringify(payload) });
 }

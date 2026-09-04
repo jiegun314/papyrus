@@ -12,7 +12,7 @@ import { Router } from 'express';
 import { searchDouban, fetchBookDetail, fetchBookByIsbn } from '../services/douban.js';
 import { downloadCover } from '../services/cover.js';
 import { createBook, findBookByDoubanId, getBook, setBookCoverPath } from '../services/bookService.js';
-import type { DoubanSearchResult } from '../../shared/types.js';
+import type { BookType, DoubanSearchResult } from '../../shared/types.js';
 
 export const doubanRouter = Router();
 
@@ -47,7 +47,7 @@ doubanRouter.get('/book', async (req, res) => {
 // POST /api/douban/save  body: { isbn } 或 { id } 或 { searchResult }
 doubanRouter.post('/save', async (req, res) => {
   try {
-    const body = req.body as { isbn?: string; id?: string; searchResult?: DoubanSearchResult };
+    const body = req.body as { isbn?: string; id?: string; searchResult?: DoubanSearchResult; bookType?: BookType };
     let detail: Record<string, unknown>;
     let titleFallback: string | undefined;
 
@@ -86,6 +86,7 @@ doubanRouter.post('/save', async (req, res) => {
       isbn10: detail.isbn10 as string | undefined,
       doubanId,
       doubanUrl: detail.doubanUrl as string,
+      bookType: body.bookType === 'ebook' ? 'ebook' : 'physical',
       coverUrl: detail.coverUrl as string | null,
       ratingAverage: detail.ratingAverage as number | null,
       ratingCount: detail.ratingCount as number | null,

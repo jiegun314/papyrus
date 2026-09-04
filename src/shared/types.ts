@@ -8,6 +8,9 @@
 /** 书籍阅读状态：unread = 未读, reading = 阅读中, read = 已读, abandoned = 放弃 */
 export type ReadingStatus = 'unread' | 'reading' | 'read' | 'abandoned';
 
+/** 书籍载体类型：physical = 实体书, ebook = 电子书 */
+export type BookType = 'physical' | 'ebook';
+
 /** 图书基本信息（与数据库 books 表对应） */
 export interface Book {
   id: number;
@@ -36,6 +39,14 @@ export interface Book {
   catalog: string | null;   // 目录
   coverUrl: string | null;  // 豆瓣封面原始地址
   coverPath: string | null; // 本地缓存的封面路径（/covers/xxx.jpg）
+  /** 书籍载体类型：实体书 / 电子书（默认实体书） */
+  bookType: BookType;
+  /** 电子书文件地址（/ebooks/xxx.pdf）；非电子书或未上传为 null */
+  ebookPath: string | null;
+  /** 上传电子书时的原始文件名（用于下载时作为保存名） */
+  ebookFilename: string | null;
+  /** 电子书文件大小（字节） */
+  ebookSize: number | null;
   ratingAverage: number | null;
   ratingCount: number | null;
   doubanUrl: string | null;
@@ -83,6 +94,10 @@ export interface Review {
 /** 统计信息（首页展示） */
 export interface Stats {
   totalBooks: number;
+  /** 物理（实体）书籍数 */
+  physicalCount: number;
+  /** 电子书数 */
+  ebookCount: number;
   /** 未读书籍数 */
   unread: number;
   /** 阅读中书籍数 */
@@ -103,6 +118,8 @@ export interface BookQuery {
   categoryId?: number;
   tagId?: number;
   readingStatus?: ReadingStatus;
+  /** 按书籍载体类型筛选 */
+  bookType?: BookType;
   limit?: number;
   offset?: number;
   /** 仅返回有书评的书籍 */
@@ -164,6 +181,14 @@ export interface BookInput {
   doubanUrl?: string | null;
   coverUrl?: string | null;
   coverPath?: string | null;
+  /** 书籍载体类型：实体书 / 电子书 */
+  bookType?: BookType;
+  /** 电子书文件地址（/ebooks/xxx.pdf） */
+  ebookPath?: string | null;
+  /** 上传电子书时的原始文件名 */
+  ebookFilename?: string | null;
+  /** 电子书文件大小（字节） */
+  ebookSize?: number | null;
   ratingAverage?: number | null;
   ratingCount?: number | null;
   /* 以下字段仅 Amazon 导入时使用（手动表单不会用到） */

@@ -3,7 +3,7 @@
  * Tab ①：从豆瓣导入；Tab ②：Amazon 导入（英文书）；Tab ③：手动录入。
  */
 import { useEffect, useState } from 'react';
-import type { AmazonSearchResult, Category, DoubanSearchResult } from '../../../shared/types';
+import type { AmazonSearchResult, BookType, Category, DoubanSearchResult } from '../../../shared/types';
 import { createBook } from '../../api/books';
 import { doubanPreview, doubanSave, doubanSearch } from '../../api/douban';
 import { amazonPreview, amazonSave, amazonSearch } from '../../api/amazon';
@@ -13,6 +13,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { Loading } from '../../components/Loading';
 import { Modal } from '../../components/Modal';
 import { useToast } from '../../components/Toast';
+import { BOOK_TYPE_TEXT } from '../../lib/bookType';
 import { fmtRating } from '../../lib/format';
 import {
   BookFormFields,
@@ -22,6 +23,8 @@ import {
 } from '../books/BookForm';
 
 type TabKey = 'douban' | 'amazon' | 'manual';
+/** 添加流程：type = 先选择载体类型；form = 进入具体录入方式 */
+type AddStep = 'type' | 'form';
 
 export function AddBookModal({
   open,
@@ -33,47 +36,98 @@ export function AddBookModal({
   /** 保存成功后回调（父级：跳转书架 + 触发刷新） */
   onSaved: () => void;
 }) {
+  const [step, setStep] = useState<AddStep>('type');
+  const [bookType, setBookType] = useState<BookType>('physical');
   const [tab, setTab] = useState<TabKey>('douban');
+
+  // 每次打开时回到「选择载体类型」第一步
+  useEffect(() => {
+    if (open) {
+      setStep('type');
+      setBookType('physical');
+      setTab('douban');
+    }
+  }, [open]);
+
+  const chooseType = (t: BookType) => {
+    setBookType(t);
+    setStep('form');
+  };
 
   return (
     <Modal open={open} title="添加书籍" size="medium" onClose={onClose}>
-      <div className="tabs">
-        <button
-          type="button"
-          className={`tab${tab === 'douban' ? ' active' : ''}`}
-          onClick={() => setTab('douban')}
-        >
-          ① 从豆瓣导入
-        </button>
-        <button
-          type="button"
-          className={`tab${tab === 'amazon' ? ' active' : ''}`}
-          onClick={() => setTab('amazon')}
-        >
-          ② Amazon 导入
-        </button>
-        <button
-          type="button"
-          className={`tab${tab === 'manual' ? ' active' : ''}`}
-          onClick={() => setTab('manual')}
-        >
-          ③ 手动录入
-        </button>
-      </div>
-      {tab === 'douban' ? (
-        <DoubanPanel onSaved={onSaved} />
-      ) : tab === 'amazon' ? (
-        <AmazonPanel onSaved={onSaved} />
+      {step === 'type' ? (
+        <TypeStep onChoose={chooseType} />
       ) : (
-        <ManualPanel onSaved={onSaved} />
+        <>
+          <div className="add-type-bar">
+            <span className={`add-type-badge ${bookType}`}>{BOOK_TYPE_TEXT[bookType]}</span>
+            <button type="button" className="btn-link" onClick={() => setStep('type')}>
+              更改类型
+            </button>
+          </div>
+          <div className="tabs">
+            <button
+              type="button"
+              className={`tab${tab === 'douban' ? ' active' : ''}`}
+              onClick={() => setTab('douban')}
+            >
+              ① 从豆瓣导入
+            </button>
+            <button
+              type="button"
+              className={`tab${tab === 'amazon' ? ' active' : ''}`}
+              onClick={() => setTab('amazon')}
+            >
+              ② Amazon 导入
+            </button>
+            <button
+              type="button"
+              className={`tab${tab === 'manual' ? ' active' : ''}`}
+              onClick={() => setTab('manual')}
+            >
+              ③ 手动录入
+            </button>
+          </div>
+          {tab === 'douban' ? (
+            <DoubanPanel onSaved={onSaved} bookType={bookType} />
+          ) : tab === 'amazon' ? (
+            <AmazonPanel onSaved={onSaved} bookType={bookType} />
+          ) : (
+            <ManualPanel onSaved={onSaved} bookType={bookType} />
+          )}
+        </>
       )}
     </Modal>
+  );
+}
+
+/* ============================================================
+ * 第一步：选择载体类型（实体书 / 电子书）
+ * ============================================================ */
+function TypeStep({ onChoose }: { onChoose: (t: BookType) => void }) {
+  return (
+    <div className="add-type-step">
+      <p className="add-type-hint">先选择这本书的载体类型，再进行后续操作：</p>
+      <div className="type-options">
+        <button type="button" className="type-card" onClick={() => onChoose('ebook')}>
+          <span className="type-icon">📱</span>
+          <span className="type-name">电子书</span>
+          <span className="type-desc">存储在本地，可上传文件、在线预览与下载</span>
+        </button>
+        <button type="button" className="type-card" onClick={() => onChoose('physical')}>
+          <span className="type-icon">📚</span>
+          <span className="type-name">实体书</span>
+          <span className="type-desc">仅记录图书信息，不存储文件</span>
+        </button>
+      </div>
+    </div>
   );
 }
 /* ============================================================
  * 豆瓣导入面板
  * ============================================================ */
-function DoubanPanel({ onSaved }: { onSaved: () => void }) {
+function DoubanPanel({ onSaved, bookType }: { onSaved: () => void; bookType: BookType }) {
   const toast = useToast();
   const [q, setQ] = useState('');
   const [searching, setSearching] = useState(false);
@@ -122,7 +176,7 @@ function DoubanPanel({ onSaved }: { onSaved: () => void }) {
   const handleSave = async (item: DoubanSearchResult) => {
     setBusy((b) => ({ ...b, save: item.id }));
     try {
-      const result = await doubanSave({ searchResult: item });
+      const result = await doubanSave({ searchResult: item, bookType });
       toast(result.alreadyExists ? '这本书已在书架中' : '已保存到书架', 'success');
       onSaved();
     } catch (e) {
@@ -253,7 +307,7 @@ function PreviewImage({ src, alt }: { src: string; alt: string }) {
 /* ============================================================
  * Amazon 导入面板（英文书）
  * ============================================================ */
-function AmazonPanel({ onSaved }: { onSaved: () => void }) {
+function AmazonPanel({ onSaved, bookType }: { onSaved: () => void; bookType: BookType }) {
   const toast = useToast();
   const [q, setQ] = useState('');
   const [searching, setSearching] = useState(false);
@@ -303,7 +357,7 @@ function AmazonPanel({ onSaved }: { onSaved: () => void }) {
   const handleSave = async (item: AmazonSearchResult) => {
     setBusy((b) => ({ ...b, save: item.asin }));
     try {
-      const result = await amazonSave({ searchResult: item });
+      const result = await amazonSave({ searchResult: item, bookType });
       toast(result.alreadyExists ? '这本书已在书架中' : '已保存到书架', 'success');
       onSaved();
     } catch (e) {
@@ -427,11 +481,16 @@ function AmazonPreviewPanel({ detail, item }: { detail: Record<string, unknown>;
 /* ============================================================
  * 手动录入面板
  * ============================================================ */
-function ManualPanel({ onSaved }: { onSaved: () => void }) {
+function ManualPanel({ onSaved, bookType }: { onSaved: () => void; bookType: BookType }) {
   const toast = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
-  const [values, setValues] = useState<BookFormValues>(emptyBookFormValues);
+  const [values, setValues] = useState<BookFormValues>(() => ({ ...emptyBookFormValues(), bookType }));
   const [busy, setBusy] = useState(false);
+
+  // 若用户在「更改类型」后回到手动录入，同步最新的载体类型（保留已填内容）
+  useEffect(() => {
+    setValues((prev) => ({ ...prev, bookType }));
+  }, [bookType]);
 
   useEffect(() => {
     let alive = true;

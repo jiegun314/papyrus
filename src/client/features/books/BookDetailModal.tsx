@@ -7,6 +7,7 @@ import {
   addReview,
   deleteBook,
   deleteReview,
+  ebookDownloadUrl,
   getBook,
   retryCover,
   setCategory,
@@ -22,7 +23,8 @@ import { Loading } from '../../components/Loading';
 import { Modal } from '../../components/Modal';
 import { StarRating } from '../../components/StarRating';
 import { useToast } from '../../components/Toast';
-import { authorText, fmtDate, fmtRating, starsText } from '../../lib/format';
+import { authorText, fmtBytes, fmtDate, fmtRating, starsText } from '../../lib/format';
+import { BOOK_TYPE_TEXT } from '../../lib/bookType';
 import { READING_STATUS_OPTIONS, READING_STATUS_TEXT } from '../../lib/readingStatus';
 import { EditBookDialog } from './EditBookDialog';
 import { TagPickerDialog } from './TagPickerDialog';
@@ -263,6 +265,7 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
             </div>
 
             <h2 className="detail-title">
+              <span className={`book-type-tag ${book.bookType}`}>{BOOK_TYPE_TEXT[book.bookType]}</span>
               {book.title}
               {book.subtitle ? <span className="detail-subtitle">{book.subtitle}</span> : null}
             </h2>
@@ -328,6 +331,26 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
                 ))}
               </div>
             </div>
+            {/* 电子书文件：电子书已上传时显示，可在线预览 / 下载 */}
+            {book.bookType === 'ebook' && book.ebookPath ? (
+              <div className="detail-section ebook-section">
+                <h3>电子书文件</h3>
+                <div className="ebook-detail-row">
+                  <span className="ebook-detail-file">
+                    📕 {book.ebookFilename}
+                    {book.ebookSize ? <small>（{fmtBytes(book.ebookSize)}）</small> : null}
+                  </span>
+                  <span className="ebook-detail-actions">
+                    <a className="btn" href={book.ebookPath} target="_blank" rel="noreferrer">
+                      查看
+                    </a>
+                    <a className="btn btn-primary" href={ebookDownloadUrl(book.id)}>
+                      下载
+                    </a>
+                  </span>
+                </div>
+              </div>
+            ) : null}
             {/* 内容简介 / 作者简介 / 我的备注 —— 位于右列 detail-info 内部 */}
           {book.summary ? (
             <div className="detail-section">

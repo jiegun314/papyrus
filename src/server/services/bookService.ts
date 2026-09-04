@@ -7,6 +7,7 @@
 import type { Book, BookInput, BookQuery, Stats } from '../../shared/types.js';
 import { getDb, rowToBook, stringifyAuthors } from '../db/index.js';
 import { removeCover } from './cover.js';
+import { removeEbookFile } from './ebook.js';
 
 /* ------------------------------------------------------------------ */
 /* 私有工具：查询书籍时的关联数据                                     */
@@ -72,6 +73,10 @@ export function listBooks(query: BookQuery): Book[] {
   if (query.readingStatus) {
     where.push('b.reading_status = ?');
     params.push(query.readingStatus);
+  }
+  if (query.bookType) {
+    where.push('b.book_type = ?');
+    params.push(query.bookType);
   }
   if (query.tagId) {
     where.push(`EXISTS (SELECT 1 FROM book_tags bt2 WHERE bt2.book_id = b.id AND bt2.tag_id = ?)`);
@@ -144,12 +149,14 @@ export function createBook(
     INSERT INTO books (
       douban_id, amazon_asin, isbn13, isbn10, title, subtitle, original_title, authors,
       publisher, pubdate, price, pages, binding, series, summary, author_intro,
-      catalog, cover_url, cover_path, rating_average, rating_count, douban_url, amazon_url,
+      catalog, cover_url, cover_path, book_type, ebook_path, ebook_filename, ebook_size,
+      rating_average, rating_count, douban_url, amazon_url,
       category_id, reading_status, notes
     ) VALUES (
       @doubanId, @amazonAsin, @isbn13, @isbn10, @title, @subtitle, @originalTitle, @authors,
       @publisher, @pubdate, @price, @pages, @binding, @series, @summary, @authorIntro,
-      @catalog, @coverUrl, @coverPath, @ratingAverage, @ratingCount, @doubanUrl, @amazonUrl,
+      @catalog, @coverUrl, @coverPath, @bookType, @ebookPath, @ebookFilename, @ebookSize,
+      @ratingAverage, @ratingCount, @doubanUrl, @amazonUrl,
       @categoryId, @readingStatus, @notes
     )`);
 
@@ -173,6 +180,10 @@ export function createBook(
     catalog: input.catalog?.trim() || null,
     coverUrl: input.coverUrl ?? null,
     coverPath: input.coverPath ?? null, // 手动录入时可携带上传后的本地封面路径
+    bookType: input.bookType ?? 'physical', // 默认实体书（现有书籍/导入均为实体书）
+    ebookPath: input.ebookPath ?? null,     // 电子书文件路径（手动录入时可携带）
+    ebookFilename: input.ebookFilename ?? null,
+    ebookSize: input.ebookSize ?? null,
     ratingAverage: input.ratingAverage ?? null,
     ratingCount: input.ratingCount ?? null,
     doubanUrl: input.doubanUrl ?? null,
@@ -197,6 +208,8 @@ export function updateBook(id: number, input: BookInput): Book | null {
     catalog: 'catalog', isbn13: 'isbn13', isbn10: 'isbn10', categoryId: 'category_id',
     readingStatus: 'reading_status', notes: 'notes',
     coverUrl: 'cover_url', coverPath: 'cover_path',
+    bookType: 'book_type', ebookPath: 'ebook_path',
+    ebookFilename: 'ebook_filename', ebookSize: 'ebook_size',
   };
   for (const key of Object.keys(map)) {
     if (key in input && input[key as keyof BookInput] !== undefined) {
@@ -209,16 +222,21 @@ export function updateBook(id: number, input: BookInput): Book | null {
     params.authors = stringifyAuthors(input.authors);
   }
   if (fields.length === 0) return getBook(id);
-  // 封面被替换时，事后清理旧文件（避免磁盘上残留孤儿封面）
+  const prev = getBook(id);
+  // 封面 / 电子书被替换或清除时，事后清理旧文件（避免磁盘上残留孤儿文件）
   const coverChanged =
     'coverPath' in input &&
     input.coverPath !== undefined &&
-    (input.coverPath ?? null) !== (getBook(id)?.coverPath ?? null);
-  const prevCover = getBook(id)?.coverPath ?? null;
+    (input.coverPath ?? null) !== (prev?.coverPath ?? null);
+  const ebookChanged =
+    'ebookPath' in input &&
+    input.ebookPath !== undefined &&
+    (input.ebookPath ?? null) !== (prev?.ebookPath ?? null);
   fields.push("updated_at = datetime('now','localtime')");
   db.prepare(`UPDATE books SET ${fields.join(', ')} WHERE id = @id`).run(params);
   const next = getBook(id);
-  if (coverChanged && prevCover) removeCover(prevCover);
+  if (coverChanged && prev?.coverPath) removeCover(prev.coverPath);
+  if (ebookChanged && prev?.ebookPath) removeEbookFile(prev.ebookPath);
   return next;
 }
 
@@ -241,6 +259,7 @@ export function deleteBook(id: number): boolean {
   if (!book) return false;
   db.prepare('DELETE FROM books WHERE id = ?').run(id);
   if (book.coverPath) removeCover(book.coverPath);
+  if (book.ebookPath) removeEbookFile(book.ebookPath);
   return true;
 }
 
@@ -378,6 +397,8 @@ export function getStats(): Stats {
     (db.prepare('SELECT COUNT(*) AS c FROM books WHERE reading_status = ?').get(s) as { c: number }).c;
   return {
     totalBooks: q('SELECT COUNT(*) AS c FROM books'),
+    physicalCount: q("SELECT COUNT(*) AS c FROM books WHERE book_type = 'physical'"),
+    ebookCount: q("SELECT COUNT(*) AS c FROM books WHERE book_type = 'ebook'"),
     unread: countByReadingStatus('unread'),
     reading: countByReadingStatus('reading'),
     read: countByReadingStatus('read'),

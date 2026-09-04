@@ -10,6 +10,7 @@ function toQueryString(query: BookQuery): string {
   if (query.categoryId != null) params.set('categoryId', String(query.categoryId));
   if (query.tagId != null) params.set('tagId', String(query.tagId));
   if (query.readingStatus) params.set('readingStatus', query.readingStatus);
+  if (query.bookType) params.set('bookType', query.bookType);
   if (query.hasReview) params.set('hasReview', 'true');
   if (query.hasTag) params.set('hasTag', 'true');
   if (query.hasCategory) params.set('hasCategory', 'true');
@@ -46,6 +47,27 @@ export function uploadCover(file: File): Promise<{ coverPath: string }> {
     headers: { 'Content-Type': file.type || 'application/octet-stream' },
     body: file,
   });
+}
+
+/** 手动上传电子书文件，返回访问路径与下载元数据 */
+export function uploadEbook(file: File): Promise<{
+  ebookPath: string;
+  ebookFilename: string;
+  ebookSize: number;
+}> {
+  return request<{ ebookPath: string; ebookFilename: string; ebookSize: number }>(
+    '/api/books/upload-ebook',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      body: file,
+    }
+  );
+}
+
+/** 电子书下载地址（Content-Disposition: attachment） */
+export function ebookDownloadUrl(id: number): string {
+  return `/api/books/${id}/ebook/download`;
 }
 
 /** 更新书籍信息 */

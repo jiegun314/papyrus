@@ -12,7 +12,7 @@ import { Router } from 'express';
 import { searchAmazon, fetchAmazonDetail, fetchAmazonByIsbn } from '../services/amazon.js';
 import { downloadCover } from '../services/cover.js';
 import { createBook, findBookByAmazonAsin, getBook, setBookCoverPath } from '../services/bookService.js';
-import type { AmazonSearchResult } from '../../shared/types.js';
+import type { AmazonSearchResult, BookType } from '../../shared/types.js';
 
 export const amazonRouter = Router();
 
@@ -47,7 +47,7 @@ amazonRouter.get('/book', async (req, res) => {
 // POST /api/amazon/save  body: { asin } 或 { isbn } 或 { searchResult }
 amazonRouter.post('/save', async (req, res) => {
   try {
-    const body = req.body as { isbn?: string; asin?: string; searchResult?: AmazonSearchResult };
+    const body = req.body as { isbn?: string; asin?: string; searchResult?: AmazonSearchResult; bookType?: BookType };
     let detail: Record<string, unknown>;
     let titleFallback: string | undefined;
 
@@ -86,6 +86,7 @@ amazonRouter.post('/save', async (req, res) => {
       isbn10: detail.isbn10 as string | undefined,
       amazonAsin: asin,
       amazonUrl: detail.amazonUrl as string,
+      bookType: body.bookType === 'ebook' ? 'ebook' : 'physical',
       coverUrl: detail.coverUrl as string | null,
       ratingAverage: detail.ratingAverage as number | null,
       ratingCount: detail.ratingCount as number | null,

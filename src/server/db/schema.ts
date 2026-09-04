@@ -36,6 +36,10 @@ CREATE TABLE IF NOT EXISTS books (
   catalog        TEXT,
   cover_url      TEXT,                           -- 豆瓣/Amazon 封面原始 URL
   cover_path     TEXT,                           -- 本地缓存封面路径
+  book_type      TEXT NOT NULL DEFAULT 'physical' CHECK (book_type IN ('physical','ebook')),
+  ebook_path     TEXT,                           -- 电子书本地文件路径（/ebooks/xxx）
+  ebook_filename TEXT,                           -- 电子书原始文件名（下载时保存名）
+  ebook_size     INTEGER,                        -- 电子书文件大小（字节）
   rating_average REAL,
   rating_count   INTEGER,
   douban_url     TEXT,
@@ -51,6 +55,7 @@ CREATE INDEX IF NOT EXISTS idx_books_title ON books(title);
 CREATE INDEX IF NOT EXISTS idx_books_isbn ON books(isbn13, isbn10);
 CREATE INDEX IF NOT EXISTS idx_books_category ON books(category_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_books_amazon_asin ON books(amazon_asin);
+CREATE INDEX IF NOT EXISTS idx_books_book_type ON books(book_type);
 
 -- 标签表
 CREATE TABLE IF NOT EXISTS tags (

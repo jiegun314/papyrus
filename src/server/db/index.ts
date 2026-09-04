@@ -8,12 +8,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SCHEMA_SQL, DEFAULT_CATEGORIES } from './schema.js';
+import type { BookType } from '../../shared/types.js';
 
 // 项目根目录（src/server/db/ -> 项目根）
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT_DIR = path.resolve(__dirname, '..', '..', '..');
 export const DATA_DIR = path.join(ROOT_DIR, 'data');
 export const COVERS_DIR = path.join(DATA_DIR, 'covers');
+export const EBOOKS_DIR = path.join(DATA_DIR, 'ebooks');
 export const DB_PATH = path.join(DATA_DIR, 'papyrus.db');
 
 let db: Database.Database | null = null;
@@ -24,6 +26,7 @@ export function getDb(): Database.Database {
 
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.mkdirSync(COVERS_DIR, { recursive: true });
+  fs.mkdirSync(EBOOKS_DIR, { recursive: true });
 
   db = new Database(DB_PATH);
   db.pragma('journal_mode = WAL'); // 并发读写更安全
@@ -84,6 +87,10 @@ function migrate(db: Database.Database): void {
             catalog        TEXT,
             cover_url      TEXT,
             cover_path     TEXT,
+            book_type      TEXT NOT NULL DEFAULT 'physical' CHECK (book_type IN ('physical','ebook')),
+            ebook_path     TEXT,
+            ebook_filename TEXT,
+            ebook_size     INTEGER,
             rating_average REAL,
             rating_count   INTEGER,
             douban_url     TEXT,
@@ -123,8 +130,15 @@ function migrate(db: Database.Database): void {
   addColumnIfMissing(db, 'books', 'amazon_asin', 'TEXT');
   addColumnIfMissing(db, 'books', 'amazon_url', 'TEXT');
 
-  // 阅读状态筛选索引（每次启动都会确保存在）
+  // 电子书功能（v3）：载体类型 + 电子书文件元数据。默认全部标记为实体书。
+  addColumnIfMissing(db, 'books', 'book_type', "TEXT NOT NULL DEFAULT 'physical'");
+  addColumnIfMissing(db, 'books', 'ebook_path', 'TEXT');
+  addColumnIfMissing(db, 'books', 'ebook_filename', 'TEXT');
+  addColumnIfMissing(db, 'books', 'ebook_size', 'INTEGER');
+
+  // 阅读状态 / 载体类型筛选索引（每次启动都会确保存在）
   db.exec('CREATE INDEX IF NOT EXISTS idx_books_reading_status ON books(reading_status)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_books_book_type ON books(book_type)');
 }
 
 /** 若某列不存在，则将其以指定类型追加到表中 */
@@ -178,6 +192,10 @@ export function rowToBook(row: Record<string, unknown>): any {
     catalog: row.catalog ?? null,
     coverUrl: row.cover_url ?? null,
     coverPath: row.cover_path ?? null,
+    bookType: (row.book_type as BookType) ?? 'physical',
+    ebookPath: row.ebook_path ?? null,
+    ebookFilename: row.ebook_filename ?? null,
+    ebookSize: typeof row.ebook_size === 'number' ? row.ebook_size : null,
     ratingAverage: row.rating_average ?? null,
     ratingCount: row.rating_count ?? null,
     doubanUrl: row.douban_url ?? null,

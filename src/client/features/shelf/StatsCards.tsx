@@ -27,6 +27,8 @@ export function StatsCards({
     action: { kind: 'list'; title: string; query: BookQuery };
   }> = [
     { label: '藏书总数', count: stats.totalBooks, action: { kind: 'list', title: '全部书籍', query: {} } },
+    { label: '实体书', count: stats.physicalCount, action: { kind: 'list', title: '实体书', query: { bookType: 'physical' } } },
+    { label: '电子书', count: stats.ebookCount, color: 'teal', action: { kind: 'list', title: '电子书', query: { bookType: 'ebook' } } },
     ...READING_STATUS_OPTIONS.map((s) => ({
       label: READING_STATUS_TEXT[s],
       count: stats[s],

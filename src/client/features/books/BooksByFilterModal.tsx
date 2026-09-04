@@ -10,6 +10,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { Loading } from '../../components/Loading';
 import { Modal } from '../../components/Modal';
 import { authorText } from '../../lib/format';
+import { BOOK_TYPE_TEXT } from '../../lib/bookType';
 import { BookDetailModal } from './BookDetailModal';
 
 export function BooksByFilterModal({
@@ -61,6 +62,11 @@ export function BooksByFilterModal({
               <div key={b.id} className="book-list-item">
                 <button type="button" className="book-list-title" onClick={() => setDetailId(b.id)}>
                   {b.title}
+                  {b.bookType === 'ebook' ? (
+                    <span className="ebook-badge" title={BOOK_TYPE_TEXT.ebook}>
+                      {BOOK_TYPE_TEXT.ebook}
+                    </span>
+                  ) : null}
                 </button>
                 <span className="book-list-author">{authorText(b)}</span>
                 <span className="book-list-publisher">{b.publisher || '—'}</span>

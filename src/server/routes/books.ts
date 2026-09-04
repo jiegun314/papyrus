@@ -4,13 +4,17 @@
  * 书籍相关 API：增删改查、标签、归类、阅读状态、书评。
  */
 import { Router, raw } from 'express';
+import fs from 'node:fs';
+import path from 'node:path';
 import {
   listBooks, getBook, createBook, updateBook, deleteBook,
   setBookTags, setBookCategory, setBookCoverPath,
   addReview, updateReview, deleteReview,
 } from '../services/bookService.js';
 import { downloadCover, saveCoverImage } from '../services/cover.js';
+import { buildEbookDownloadName, saveEbookFile } from '../services/ebook.js';
 import { fetchBookDetail, fetchBookByIsbn } from '../services/douban.js';
+import { EBOOKS_DIR } from '../db/index.js';
 import type { BookInput, ReadingStatus } from '../../shared/types.js';
 
 export const booksRouter = Router();
@@ -24,11 +28,16 @@ booksRouter.get('/', (req, res) => {
     v === 'true' || v === '1' ? true : v === 'false' || v === '0' ? false : undefined;
   const isReadingStatus = (v: unknown): v is ReadingStatus =>
     v === 'unread' || v === 'reading' || v === 'read' || v === 'abandoned';
+  // 书籍载体类型：physical / ebook
+  const { bookType } = req.query;
+  const parsedBookType =
+    bookType === 'physical' || bookType === 'ebook' ? bookType : undefined;
   const books = listBooks({
     keyword: typeof keyword === 'string' ? keyword : undefined,
     categoryId: categoryId ? Number(categoryId) : undefined,
     tagId: tagId ? Number(tagId) : undefined,
     readingStatus: isReadingStatus(readingStatus) ? readingStatus : undefined,
+    bookType: parsedBookType,
     hasReview: bool(req.query.hasReview),
     hasTag: bool(req.query.hasTag),
     hasCategory: bool(req.query.hasCategory),
@@ -82,6 +91,41 @@ booksRouter.post(
     res.json({ coverPath });
   }
 );
+
+/* ---------- 手动上传电子书 ---------- */
+
+// POST /api/books/upload-ebook —— 接收上传的电子书文件二进制体，保存到本地并返回访问路径与元数据。
+// 与封面上传一致：以文件的原始二进制作为请求体（Content-Type: 应用类型，如 application/pdf / octet-stream）。
+booksRouter.post(
+  '/upload-ebook',
+  raw({ type: '*/*', limit: '100mb' }),
+  (req, res) => {
+    const buf = req.body as Buffer;
+    if (!Buffer.isBuffer(buf) || buf.length === 0) {
+      return res.status(400).json({ error: '请选择有效的电子书文件' });
+    }
+    const mime = (req.headers['content-type'] as string) || '';
+    const name = typeof req.query.name === 'string' ? req.query.name : 'book';
+    const saved = saveEbookFile(buf, mime, name);
+    if (!saved) return res.status(500).json({ error: '电子书保存失败，请重试' });
+    res.json(saved);
+  }
+);
+
+/* ---------- 电子书下载 ---------- */
+
+// GET /api/books/:id/ebook/download —— 以下载方式返回电子书文件（Content-Disposition: attachment）。
+booksRouter.get('/:id/ebook/download', (req, res) => {
+  const id = Number(req.params.id);
+  const book = getBook(id);
+  if (!book) return res.status(404).json({ error: '书籍不存在' });
+  if (!book.ebookPath) return res.status(404).json({ error: '该书未上传电子书文件' });
+  const filename = path.basename(book.ebookPath);
+  const target = path.join(EBOOKS_DIR, filename);
+  if (!fs.existsSync(target)) return res.status(404).json({ error: '电子书文件不存在' });
+  const downloadName = buildEbookDownloadName(book, filename);
+  res.download(target, downloadName);
+});
 
 /* ---------- 修改 / 删除 ---------- */
 

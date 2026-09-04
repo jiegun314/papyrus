@@ -11,5 +11,6 @@ data/*.db-shm
 data/covers/*.jpg
 data/covers/*.png
 data/covers/*.webp
+data/ebooks/
 .DS_Store
 *.log

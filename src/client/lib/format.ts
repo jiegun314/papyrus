@@ -24,3 +24,17 @@ export function starsText(v: number): string {
   const filled = Math.round(v);
   return '★'.repeat(filled) + '☆'.repeat(Math.max(0, 5 - filled));
 }
+
+/** 字节数 → 人类可读大小（如 2.4 MB） */
+export function fmtBytes(bytes: number | null | undefined): string {
+  if (bytes == null || bytes <= 0) return '—';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let i = 0;
+  let n = bytes;
+  while (n >= 1024 && i < units.length - 1) {
+    n /= 1024;
+    i++;
+  }
+  const v = i === 0 ? n : Math.round(n * 10) / 10;
+  return `${v} ${units[i]}`;
+}

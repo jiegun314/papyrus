@@ -318,6 +318,21 @@ button.stat-card.clickable { cursor: pointer; }
 .book-rating { font-size: 12.5px; color: var(--gold); margin-top: 3px; min-height: 1.6em; }
 .book-rating .votes { color: var(--ink-faint); margin-left: 4px; }
 
+/* 电子书醒目标签（卡片 / 清单：标题旁，与标题字符同字号） */
+.ebook-badge {
+  flex: none;
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 6px;
+  font-size: 1em;               /* 与标题字符同等大小 */
+  font-weight: 600;
+  line-height: 1.3;
+  color: #fff;
+  background: var(--teal);
+  box-shadow: 0 0 0 1px rgba(102,163,191,.4);
+  white-space: nowrap;
+}
+
 .empty-state {
   grid-column: 1 / -1;
   text-align: center;
@@ -479,6 +494,24 @@ button.stat-card.clickable { cursor: pointer; }
   .cover-field-preview { width: 100%; }
 }
 
+/* 电子书上传字段（手动录入 / 编辑弹窗） */
+.ebook-field { display: flex; flex-direction: column; gap: 10px; }
+.ebook-field-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--ink-faint); }
+.ebook-file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--bg-deep);
+  border: 1px solid var(--line);
+  font-size: 13.5px;
+  color: var(--ink);
+}
+.ebook-file-icon { font-size: 16px; }
+.ebook-file-name { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ebook-file-size { color: var(--ink-faint); font-size: 12px; }
+
 /* ---------- 标签页切换 ---------- */
 
 .tabs {
@@ -548,6 +581,23 @@ button.stat-card.clickable { cursor: pointer; }
 }
 .detail-title { font-family: var(--serif); font-size: 24px; font-weight: 700; line-height: 1.3; }
 .detail-subtitle { color: var(--ink-soft); font-size: 14.5px; margin-top: 4px; }
+
+/* 书籍载体类型标签（详情标题前，实体书 / 电子书） */
+.book-type-tag {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 10px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .5px;
+  color: #fff;
+  position: relative;
+  top: -3px;
+}
+.book-type-tag.physical { background: var(--ink-soft); }
+.book-type-tag.ebook { background: var(--teal); }
 .detail-authors { color: var(--accent); font-size: 15px; margin-top: 8px; }
 .detail-douban { font-size: 13px; color: var(--ink-faint); margin-top: 6px; }
 .detail-douban a { color: var(--teal); text-decoration: none; }
@@ -583,6 +633,22 @@ button.stat-card.clickable { cursor: pointer; }
   justify-content: space-between;
 }
 .detail-section .content { font-size: 14px; color: var(--ink-soft); white-space: pre-wrap; line-height: 1.8; max-height: 220px; overflow-y: auto; }
+
+/* 电子书文件（详情） */
+.ebook-section h3 { margin-bottom: 12px; }
+.ebook-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-deep);
+}
+.ebook-detail-file { display: flex; align-items: center; gap: 8px; font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ebook-detail-file small { color: var(--ink-faint); }
+.ebook-detail-actions { display: flex; gap: 8px; flex: none; }
 
 
 /* 星级评分 */
@@ -854,6 +920,74 @@ button.stat-card.clickable { cursor: pointer; }
 .reading-seg-btn[data-status='reading'].active { background: var(--teal); }         /* 阅读中 */
 .reading-seg-btn[data-status='read'].active { background: var(--green); }           /* 已读 */
 .reading-seg-btn[data-status='abandoned'].active { background: var(--danger); }     /* 放弃 */
+
+/* 分段时间选择器（书籍类型等） */
+.seg-group {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--card);
+  width: fit-content;
+}
+.seg-btn {
+  border: none;
+  background: transparent;
+  padding: 8px 20px;
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: all .16s;
+}
+.seg-btn + .seg-btn { border-left: 1px solid var(--line); }
+.seg-btn:hover { background: var(--bg-deep); color: var(--ink); }
+.seg-btn.active { background: var(--accent); color: #fff; }
+
+/* ---------- 添加书籍：第一步选择载体类型 ---------- */
+.add-type-step { padding: 8px 2px 6px; }
+.add-type-hint { color: var(--ink-soft); font-size: 14px; margin-bottom: 16px; }
+.type-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.type-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 20px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  cursor: pointer;
+  text-align: left;
+  transition: all .16s;
+  font-family: var(--sans);
+}
+.type-card:hover { border-color: var(--accent); box-shadow: var(--shadow); transform: translateY(-1px); }
+.type-card .type-icon { font-size: 30px; line-height: 1; }
+.type-card .type-name { font-size: 17px; font-weight: 700; color: var(--ink); }
+.type-card .type-desc { font-size: 12.5px; color: var(--ink-faint); line-height: 1.5; }
+
+/* 已选载体类型的提示条（置于录入方式上方） */
+.add-type-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  background: var(--accent-soft);
+  border-radius: 10px;
+}
+.add-type-badge {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .5px;
+  color: #fff;
+}
+.add-type-badge.physical { background: var(--ink-soft); }
+.add-type-badge.ebook { background: var(--teal); }
 
 /* 简介 / 备注 / 书评 */
 .summary-text { margin-top: 6px; font-size: 14px; color: var(--ink-soft); line-height: 1.8; white-space: pre-wrap; }
