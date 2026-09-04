@@ -3,7 +3,6 @@
  * 统计卡片 + 筛选栏 + 书籍网格；详情 / 按筛选出书清单以弹窗形式叠加。
  */
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import type { Book, BookQuery, Category, Stats } from '../../../shared/types';
 import { listBooks } from '../../api/books';
 import { errorMessage } from '../../api/http';
@@ -18,7 +17,6 @@ import { FilterBar } from './FilterBar';
 import { StatsCards } from './StatsCards';
 
 export function ShelfPage() {
-  const navigate = useNavigate();
   const dataVersion = useRefreshVersion();
 
   const [query, setQuery] = useState<BookQuery>({});
@@ -90,7 +88,6 @@ export function ShelfPage() {
         <StatsCards
           stats={stats}
           onOpenList={(title, q) => setListModal({ title, query: q })}
-          onOpenView={(view) => navigate(`/${view}`)}
         />
       </aside>
 
