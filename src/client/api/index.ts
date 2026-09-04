@@ -5,4 +5,5 @@
 export * from './http';
 export * as booksApi from './books';
 export * as doubanApi from './douban';
+export * as amazonApi from './amazon';
 export * as metaApi from './meta';

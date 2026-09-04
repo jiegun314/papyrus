@@ -28,8 +28,11 @@ export function getDb(): Database.Database {
   db = new Database(DB_PATH);
   db.pragma('journal_mode = WAL'); // 并发读写更安全
   db.pragma('foreign_keys = ON');  // 启用外键级联删除
+  // 先迁移旧库（补齐缺失列），再执行建表/索引脚本：
+  // SCHEMA_SQL 里的 idx_books_amazon_asin 唯一索引依赖 amazon_asin 列，
+  // 若先跑 SCHEMA_SQL 会在旧库（尚无该列）上报 "no such column"。
+  migrate(db);
   db.exec(SCHEMA_SQL);
-  migrate(db); // 旧库结构升级（借出状态 → 阅读状态）
 
   seedCategories(db);
   return db;
@@ -45,6 +48,12 @@ export function getDb(): Database.Database {
  *      CHECK 约束，因此采用「重建表」方式迁移；旧书无阅读进度数据，一律置为 'unread'。
  */
 function migrate(db: Database.Database): void {
+  // 全新数据库：books 表尚未创建，无需迁移，直接留给随后的 SCHEMA_SQL 建表。
+  const hasBooks = db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'books'")
+    .get();
+  if (!hasBooks) return;
+
   db.exec('DROP TABLE IF EXISTS lendings');
 
   const cols = db.prepare('PRAGMA table_info(books)').all() as { name: string }[];
@@ -57,6 +66,7 @@ function migrate(db: Database.Database): void {
           CREATE TABLE books_new (
             id             INTEGER PRIMARY KEY AUTOINCREMENT,
             douban_id      TEXT UNIQUE,
+            amazon_asin    TEXT,
             isbn13         TEXT,
             isbn10         TEXT,
             title          TEXT NOT NULL,
@@ -77,6 +87,7 @@ function migrate(db: Database.Database): void {
             rating_average REAL,
             rating_count   INTEGER,
             douban_url     TEXT,
+            amazon_url     TEXT,
             category_id    INTEGER REFERENCES categories(id) ON DELETE SET NULL,
             reading_status TEXT NOT NULL DEFAULT 'unread' CHECK (reading_status IN ('unread','reading','read','abandoned')),
             notes          TEXT,
@@ -84,21 +95,21 @@ function migrate(db: Database.Database): void {
             updated_at     TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
           );
           INSERT INTO books_new (
-            id, douban_id, isbn13, isbn10, title, subtitle, original_title, authors,
+            id, douban_id, amazon_asin, isbn13, isbn10, title, subtitle, original_title, authors,
             publisher, pubdate, price, pages, binding, series, summary, author_intro,
-            catalog, cover_url, cover_path, rating_average, rating_count, douban_url,
+            catalog, cover_url, cover_path, rating_average, rating_count, douban_url, amazon_url,
             category_id, reading_status, notes, created_at, updated_at
           )
           SELECT
-            id, douban_id, isbn13, isbn10, title, subtitle, original_title, authors,
+            id, douban_id, NULL, isbn13, isbn10, title, subtitle, original_title, authors,
             publisher, pubdate, price, pages, binding, series, summary, author_intro,
-            catalog, cover_url, cover_path, rating_average, rating_count, douban_url,
+            catalog, cover_url, cover_path, rating_average, rating_count, douban_url, NULL,
             category_id, 'unread', notes, created_at, updated_at
           FROM books;
           DROP TABLE books;
           ALTER TABLE books_new RENAME TO books;
         `);
-        // 旧表删除后原索引一并消失，重新执行建表脚本恢复（title / isbn / category）
+        // 旧表删除后原索引一并消失，重新执行建表脚本恢复（title / isbn / category / amazon）
         db.exec(SCHEMA_SQL);
       });
       rebuild();
@@ -107,8 +118,21 @@ function migrate(db: Database.Database): void {
     }
   }
 
+  // 增量补列：为已存在的旧库补充 Amazon 相关列（SQLite 不允许 ALTER 加 UNIQUE 约束，
+  // 故唯一约束统一由 SCHEMA_SQL 中的 idx_books_amazon_asin 唯一索引承担）。
+  addColumnIfMissing(db, 'books', 'amazon_asin', 'TEXT');
+  addColumnIfMissing(db, 'books', 'amazon_url', 'TEXT');
+
   // 阅读状态筛选索引（每次启动都会确保存在）
   db.exec('CREATE INDEX IF NOT EXISTS idx_books_reading_status ON books(reading_status)');
+}
+
+/** 若某列不存在，则将其以指定类型追加到表中 */
+function addColumnIfMissing(db: Database.Database, table: string, column: string, type: string): void {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!cols.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+  }
 }
 
 /** 首次运行写入默认分类 */
@@ -135,6 +159,8 @@ export function rowToBook(row: Record<string, unknown>): any {
   return {
     id: row.id,
     doubanId: row.douban_id ?? null,
+    amazonAsin: row.amazon_asin ?? null,
+    amazonUrl: row.amazon_url ?? null,
     isbn13: row.isbn13 ?? null,
     isbn10: row.isbn10 ?? null,
     title: row.title,

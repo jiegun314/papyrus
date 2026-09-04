@@ -13,6 +13,10 @@ export interface Book {
   id: number;
   /** 豆瓣 subject id（可选，非豆瓣导入的书籍为空） */
   doubanId: string | null;
+  /** Amazon ASIN（可选，非 Amazon 导入的书籍为空） */
+  amazonAsin: string | null;
+  /** Amazon 详情页 URL */
+  amazonUrl: string | null;
   isbn13: string | null;
   isbn10: string | null;
   title: string;
@@ -121,6 +125,20 @@ export interface DoubanSearchResult {
   isbn?: string;
 }
 
+/** Amazon 搜索结果条目 */
+export interface AmazonSearchResult {
+  asin: string;       // Amazon ASIN
+  title: string;
+  authors?: string;   // 作者（逗号分隔）
+  url?: string;
+  image?: string;     // 封面图
+  price?: string;
+  rating?: number | null;
+  ratingCount?: number | null;
+  pubdate?: string;
+  isbn?: string;
+}
+
 /** 新建/更新书籍的载荷（手动录入表单） */
 export interface BookInput {
   title: string;
@@ -148,6 +166,9 @@ export interface BookInput {
   coverPath?: string | null;
   ratingAverage?: number | null;
   ratingCount?: number | null;
+  /* 以下字段仅 Amazon 导入时使用（手动表单不会用到） */
+  amazonAsin?: string | null;
+  amazonUrl?: string | null;
 }
 
 /** API 统一错误响应 */

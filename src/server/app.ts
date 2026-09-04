@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { booksRouter } from './routes/books.js';
 import { doubanRouter } from './routes/douban.js';
+import { amazonRouter } from './routes/amazon.js';
 import { metaRouter } from './routes/meta.js';
 import { ROOT_DIR, COVERS_DIR, getDb } from './db/index.js';
 
@@ -30,6 +31,7 @@ export function createApp(): express.Express {
   // API 路由
   app.use('/api/books', booksRouter);
   app.use('/api/douban', doubanRouter);
+  app.use('/api/amazon', amazonRouter);
   app.use('/api', metaRouter);
 
   // 健康检查

@@ -15,11 +15,12 @@ import { COVERS_DIR } from '../db/index.js';
 export async function downloadCover(
   doubanId: string | null,
   url: string,
-  fallbackName?: string
+  fallbackName?: string,
+  referer: string = 'https://book.douban.com/'
 ): Promise<string | null> {
   if (!url) return null;
 
-  // 文件名：优先用豆瓣 id，其次用书名哈希
+  // 文件名：优先用豆瓣 id / ASIN，其次用书名哈希
   const name = doubanId || fallbackName || 'cover';
   const ext = guessExtension(url);
   const filename = `${sanitize(name)}${ext}`;
@@ -29,12 +30,12 @@ export async function downloadCover(
   if (fs.existsSync(target)) return `/covers/${filename}`;
 
   try {
-    // 下载时必须携带豆瓣 Referer，否则返回 403
+    // 下载时必须携带数据源 Referer（豆瓣封面防盗链；Amazon 图片不带亦可，带上更稳）
     const res = await fetch(url, {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36',
-        Referer: 'https://book.douban.com/',
+        Referer: referer,
       },
     });
     if (!res.ok) return null;

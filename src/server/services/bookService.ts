@@ -128,24 +128,34 @@ export function findBookByDoubanId(doubanId: string): Book | null {
   return row ? attachRelations([row])[0] : null;
 }
 
+/** 检查 Amazon ASIN 是否已存在 */
+export function findBookByAmazonAsin(asin: string): Book | null {
+  const db = getDb();
+  const row = db.prepare('SELECT * FROM books WHERE amazon_asin = ?').get(asin) as any;
+  return row ? attachRelations([row])[0] : null;
+}
+
 /** 新建书籍（手动录入或豆瓣导入） */
-export function createBook(input: BookInput & { doubanId?: string | null }): number {
+export function createBook(
+  input: BookInput & { doubanId?: string | null; amazonAsin?: string | null; amazonUrl?: string | null }
+): number {
   const db = getDb();
   const stmt = db.prepare(`
     INSERT INTO books (
-      douban_id, isbn13, isbn10, title, subtitle, original_title, authors,
+      douban_id, amazon_asin, isbn13, isbn10, title, subtitle, original_title, authors,
       publisher, pubdate, price, pages, binding, series, summary, author_intro,
-      catalog, cover_url, cover_path, rating_average, rating_count, douban_url,
+      catalog, cover_url, cover_path, rating_average, rating_count, douban_url, amazon_url,
       category_id, reading_status, notes
     ) VALUES (
-      @doubanId, @isbn13, @isbn10, @title, @subtitle, @originalTitle, @authors,
+      @doubanId, @amazonAsin, @isbn13, @isbn10, @title, @subtitle, @originalTitle, @authors,
       @publisher, @pubdate, @price, @pages, @binding, @series, @summary, @authorIntro,
-      @catalog, @coverUrl, @coverPath, @ratingAverage, @ratingCount, @doubanUrl,
+      @catalog, @coverUrl, @coverPath, @ratingAverage, @ratingCount, @doubanUrl, @amazonUrl,
       @categoryId, @readingStatus, @notes
     )`);
 
   const info = stmt.run({
     doubanId: input.doubanId ?? null,
+    amazonAsin: input.amazonAsin ?? null,
     isbn13: input.isbn13 ?? null,
     isbn10: input.isbn10 ?? null,
     title: input.title.trim(),
@@ -166,6 +176,7 @@ export function createBook(input: BookInput & { doubanId?: string | null }): num
     ratingAverage: input.ratingAverage ?? null,
     ratingCount: input.ratingCount ?? null,
     doubanUrl: input.doubanUrl ?? null,
+    amazonUrl: input.amazonUrl ?? null,
     categoryId: input.categoryId ?? null,
     readingStatus: input.readingStatus ?? 'unread',
     notes: input.notes?.trim() || null,

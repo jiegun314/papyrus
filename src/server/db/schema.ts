@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS categories (
 CREATE TABLE IF NOT EXISTS books (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   douban_id      TEXT UNIQUE,                    -- 豆瓣 subject id
+  amazon_asin    TEXT,                           -- Amazon ASIN
   isbn13         TEXT,
   isbn10         TEXT,
   title          TEXT NOT NULL,
@@ -33,11 +34,12 @@ CREATE TABLE IF NOT EXISTS books (
   summary        TEXT,
   author_intro   TEXT,
   catalog        TEXT,
-  cover_url      TEXT,                           -- 豆瓣封面原始 URL
+  cover_url      TEXT,                           -- 豆瓣/Amazon 封面原始 URL
   cover_path     TEXT,                           -- 本地缓存封面路径
   rating_average REAL,
   rating_count   INTEGER,
   douban_url     TEXT,
+  amazon_url     TEXT,
   category_id    INTEGER REFERENCES categories(id) ON DELETE SET NULL,
   reading_status TEXT NOT NULL DEFAULT 'unread' CHECK (reading_status IN ('unread','reading','read','abandoned')),
   notes          TEXT,
@@ -48,6 +50,7 @@ CREATE TABLE IF NOT EXISTS books (
 CREATE INDEX IF NOT EXISTS idx_books_title ON books(title);
 CREATE INDEX IF NOT EXISTS idx_books_isbn ON books(isbn13, isbn10);
 CREATE INDEX IF NOT EXISTS idx_books_category ON books(category_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_books_amazon_asin ON books(amazon_asin);
 
 -- 标签表
 CREATE TABLE IF NOT EXISTS tags (
