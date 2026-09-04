@@ -213,6 +213,21 @@ function aggregateRatingInfo(agg: any): { ratingAverage?: number | null; ratingC
   };
 }
 
+/** 去掉 Amazon 详情文本里的双向隔离/RTL/LTR 标记与零宽字符，并压缩空白 */
+function cleanText(value: string | null | undefined): string {
+  return (value ?? '')
+    .replace(/[\u200b\u200c\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** 生成稳定的键：小写、剔除所有非字母数字（空格/连字符/方向标记） */
+function normLabel(label: string): string {
+  return cleanText(label)
+    .replace(/[^a-z0-9]/gi, '')
+    .toLowerCase();
+}
+
 function findBookJsonLd($: cheerio.CheerioAPI): any | null {
   let found: any | null = null;
   $('script[type="application/ld+json"]').each((_, el) => {
@@ -267,11 +282,15 @@ function parseDetailDom($: cheerio.CheerioAPI, asin: string, url: string): Recor
   const byline = $('#bylineInfo').first().text().trim();
   let authors: string[] = [];
   if (byline) {
-    const clean = byline
-      .replace(/\s*\(.*?\)\s*/g, ' ')
+    const clean = cleanText(byline)
+      .replace(/\s*\(.*?\)\s*/g, ' ') // 去掉「(Author) / (Epilogue) / (Foreword)」
+      .replace(/&\s*\d+\s+more.*$/i, '') // 去掉「& N more Format: …」尾部折叠
       .replace(/\s*\|.*$/g, '')
       .replace(/^by\s+/i, '');
-    authors = clean.split(',').map((s) => s.trim()).filter(Boolean);
+    authors = clean
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
   }
 
   // 封面
@@ -332,33 +351,37 @@ function collectProductDetails($: cheerio.CheerioAPI): {
   isbn10?: string;
 } {
   const map: Record<string, string> = {};
+  const add = (label: string, value: string): void => {
+    const k = normLabel(label);
+    const v = cleanText(value);
+    if (k && v && map[k] === undefined) map[k] = v;
+  };
 
-  // 结构化表格（th/td）
+  // 1) 结构化表格（th / td）——部分商品页仍使用
   $(
-    '#productDetails_techSpec_section_1 tr, #productDetails_detailBullets_section1 tr, .prodDetTable tr, #detailBullets_feature_div tr'
+    '#productDetails_techSpec_section_1 tr, #productDetails_detailBullets_section1 tr, .prodDetTable tr, #detailBullets_feature_div tr, #prodDetails tr, .a-section table tr'
   ).each((_, tr) => {
     const $tr = $(tr);
-    const th = $tr.find('th').first().text().trim();
-    const td = $tr.find('td').first().text().trim();
-    if (th && td) map[th.replace(/[:\s]/g, '').toLowerCase()] = td;
+    const th = $tr.find('th').first().text();
+    const td = $tr.find('td').first().text();
+    if (cleanText(th) && cleanText(td)) add(th, td);
   });
 
-  // 详情 bullet（li）
-  const bulletsText = $('#detailBullets_feature_div li, #productDetails_detailBullets_section1')
-    .text()
-    .replace(/\s+/g, ' ');
+  // 2) 详情 bullet（li）——当前 Amazon 图书页的主流布局：「标签 : 值」
+  $(
+    '#detailBullets_feature_div li, #productDetails_detailBullets_section1 li, #prodDetails li, .productDetails_techSpec_section_1 li'
+  ).each((_, li) => {
+    const t = cleanText($(li).text());
+    const m = t.match(/^([^:：]+?)\s*[:：]\s*(.+)$/);
+    if (m) add(m[1], m[2]);
+  });
 
-  const get = (label: string): string | undefined => {
-    const key = label.toLowerCase();
-    if (map[key]) return map[key];
-    const re = new RegExp(`${label}\\s*[:：]\\s*([^;\\n]+)`, 'i');
-    const m = bulletsText.match(re);
-    return m ? m[1].trim() : undefined;
-  };
+  const get = (label: string): string | undefined => map[normLabel(label)];
 
   const isbn13 = get('ISBN-13');
   const isbn10 = get('ISBN-10');
-  const pagesRaw = get('Number of pages') || get('Pages') || get('总页数');
+  // 页数：不同地区/版本标签不一（Print length / Number of pages / Pages）
+  const pagesRaw = get('Print length') || get('Number of pages') || get('Pages') || get('总页数');
   const publisher = get('Publisher');
   const pubdate = get('Publication date') || get('出版社');
 
@@ -391,6 +414,23 @@ function upscaleImageUrl(url: string): string {
   );
 }
 
+/**
+ * 合并 DOM 与 JSON-LD 两套详情：以 DOM（真实可见内容）为主，JSON-LD 仅补齐 DOM 缺失的字段。
+ * 这样即使某些商品页 JSON-LD 缺失/精简，也能靠 DOM 补全出版社、出版日期、页数、ISBN 等。
+ */
+function mergeDetail(dom: Record<string, unknown>, ld: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...dom };
+  for (const [k, v] of Object.entries(ld)) {
+    const empty =
+      out[k] === undefined ||
+      out[k] === null ||
+      out[k] === '' ||
+      (Array.isArray(out[k]) && out[k].length === 0);
+    if (empty) out[k] = v;
+  }
+  return out;
+}
+
 /** 解析一本书的完整详情（与 fetchBookDetail 对齐的形态） */
 export async function fetchAmazonDetail(asin: string): Promise<Record<string, unknown>> {
   const cleanAsin = asin.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
@@ -408,16 +448,13 @@ export async function fetchAmazonDetail(asin: string): Promise<Record<string, un
   const $ = cheerio.load(html);
   if (looksBlocked($)) throw new Error('Amazon 返回了验证页，无法获取详情，请稍后再试');
 
-  // 先用 JSON-LD 的结构化数据（Book schema）
+  // 同时解析 JSON-LD 结构化数据与 DOM（真实可见内容），合并以避免字段缺失
   const ld = findBookJsonLd($);
-  if (ld) {
-    const detail = mapJsonLd(ld, cleanAsin, url);
-    // 若 JSON-LD 已足够完整（至少 title），直接返回
-    if (detail.title) return detail;
-  }
+  const ldDetail = ld ? mapJsonLd(ld, cleanAsin, url) : {};
+  const domDetail = parseDetailDom($, cleanAsin, url);
 
-  // DOM 兜底
-  const detail = parseDetailDom($, cleanAsin, url);
+  // 合并且以 DOM 为主：DOM 已能可靠解析的商品信息优先，JSON-LD 仅补齐 DOM 缺失的字段
+  const detail = mergeDetail(domDetail, ldDetail);
   if (!detail.title) throw new Error('未能解析 Amazon 商品页，请确认该书存在或稍后再试');
   return detail;
 }
