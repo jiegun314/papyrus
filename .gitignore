@@ -9,3 +9,6 @@ data/covers/
 data/ebooks/
 .DS_Store
 *.log
+
+# 本地 HTTPS 自签名证书（npm run certs 生成）
+certs/
