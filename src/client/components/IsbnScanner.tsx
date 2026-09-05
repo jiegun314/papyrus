@@ -2,8 +2,8 @@
  * components/IsbnScanner.tsx —— 调用系统摄像头扫描并识别 ISBN 条形码的弹窗。
  *
  * 基于 @zxing/browser 的 BrowserMultiFormatReader，从手机/电脑后置摄像头视频流连续解码，
- * 仅限定 EAN-13 / EAN-8 两种图书条形码格式。解码成功后校验是否为合法 ISBN，
- * 通过 onDetect(isbn) 回调把识别到的 ISBN（自动转为不含连字符的纯数字）交回给调用方，
+ * 限定 EAN-13 / EAN-8 / UPC-A 等图书条形码格式，并开启 TRY_HARDER 提升对模糊、倾斜、弱光条码的识别。
+ * 解码成功后通过 onDetect(isbn) 回调把识别到的编码（自动转为不含连字符的纯数字）交回给调用方，
  * 然后停止扫描并释放摄像头。
  */
 import { useEffect, useRef, useState } from 'react';
@@ -11,16 +11,18 @@ import { createPortal } from 'react-dom';
 import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser';
 import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 
-/** ISBN-13（EAN-13 图书码）：以 978 或 979 开头的 13 位数字。 */
-const ISBN13_RE = /^9(?:78|79)\d{10}$/;
-/** ISBN-10：9 位数字 + 1 位校验位（可为数字或 X）。 */
-const ISBN10_RE = /^\d{9}[\dX]$/;
-
-/** 从解码结果文本中推导出干净的 ISBN 字符串；不符合则返回 null。 */
+/**
+ * 从解码结果文本中推导出干净的条码字符串；不符合则返回 null。
+ * 图书条码常见的几种长度都接受，交给后端的搜索接口去做最终 ISBN 校验：
+ * - ISBN-13 / EAN-13：13 位数字（通常以 978 / 979 开头）
+ * - UPC-A：12 位数字（部分书籍条码以 EAN-13 兼容方式编码）
+ * - ISBN-10：10 位（末位校验位可为数字）
+ */
 function deriveIsbn(text: string): string | null {
   const t = text.trim().replace(/[-\s]/g, '');
-  if (ISBN13_RE.test(t)) return t;
-  if (ISBN10_RE.test(t)) return t.toUpperCase();
+  if (/^\d{10}$/.test(t)) return t.toUpperCase();
+  if (/^\d{12}$/.test(t)) return t;
+  if (/^\d{13}$/.test(t)) return t;
   return null;
 }
 
@@ -71,13 +73,32 @@ export function IsbnScanner({
     detectedRef.current = false;
 
     const hints = new Map<DecodeHintType, unknown>();
-    hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13, BarcodeFormat.EAN_8]);
-    const reader = new BrowserMultiFormatReader(hints);
+    // 限定为图书常见的条形码格式，减少误判；TRY_HARDER 提升对模糊/倾斜/弱光条码的识别率。
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+      BarcodeFormat.EAN_13,
+      BarcodeFormat.EAN_8,
+      BarcodeFormat.UPC_A,
+    ]);
+    hints.set(DecodeHintType.TRY_HARDER, true);
+    // 更快的扫描频率 + 更高的目标分辨率，让识别更灵敏清晰。
+    const reader = new BrowserMultiFormatReader(hints, {
+      delayBetweenScanAttempts: 100,
+      delayBetweenScanSuccess: 200,
+      tryPlayVideoTimeout: 10000,
+    });
 
     const run = async () => {
       try {
-        const controls = await reader.decodeFromVideoDevice(
-          undefined, // 默认使用后置摄像头（facingMode: environment）
+        const controls = await reader.decodeFromConstraints(
+          {
+            audio: false,
+            video: {
+              // facingMode: 'environment' 尽量选后置摄像头；设备不支持时浏览器会自动回退到可用的摄像头。
+              facingMode: 'environment',
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+          },
           videoRef.current ?? undefined,
           (result, _err, ctrl) => {
             if (!result) return; // 每帧未识别到条形码属于正常情况，忽略
