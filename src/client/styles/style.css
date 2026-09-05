@@ -58,21 +58,10 @@ body {
   gap: 28px;
 }
 .brand { display: flex; align-items: center; gap: 12px; cursor: pointer; user-select: none; }
+/* 新 logo 为「图标 + Papyrus 标题」整体锁版图，直接按原标题高度展示，保持导航高度不变 */
 .brand-icon { height: 52.8px; width: auto; flex: none; object-fit: contain; }
-.brand-name {
-  font-family: var(--script);
-  font-size: 34px; /* 比原 28px 稍大，与左侧图标协调即可 */
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: 1px;
-  color: var(--accent);
-  padding-bottom: 7px; /* 为花体字符下行部（如 y 的尾巴）预留空间，避免裁切 */
-  text-shadow: 0 1px 1px rgba(46,66,88,.08);
-}
-.brand-sub { font-size: 12px; color: var(--ink-faint); letter-spacing: 2px; }
 @media (max-width: 640px) {
   .brand-icon { height: 40.8px; }
-  .brand-name { font-size: 28px; padding-bottom: 5px; }
 }
 
 .nav-tabs { display: flex; gap: 4px; margin-left: 8px; flex: 1; }
