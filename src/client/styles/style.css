@@ -22,6 +22,7 @@
   --radius: 12px;
   --serif: "Songti SC","Noto Serif SC","STSong",Georgia,"Times New Roman",serif;
   --sans: -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",sans-serif;
+  --script: "Snell Roundhand","Apple Chancery","Brush Script MT","Segoe Script","Lucida Handwriting",cursive;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -29,10 +30,8 @@ html, body { height: 100%; }
 
 body {
   font-family: var(--sans);
-  background:
-    radial-gradient(1200px 500px at 20% -8%, rgba(51,104,160,.08), transparent 60%),
-    radial-gradient(1000px 400px at 90% 0%, rgba(102,163,191,.08), transparent 55%),
-    var(--bg);
+  /* 主页面背景统一为纯色，避免滚动时渐变随文档移至视口外而造成颜色跳变 */
+  background-color: var(--bg);
   color: var(--ink);
   font-size: 15px;
   line-height: 1.6;
@@ -45,9 +44,10 @@ body {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(242,239,231,.86);
-  backdrop-filter: blur(12px);
+  /* 导航行使用独立底色，与主页面（--bg）明确区分 */
+  background-color: var(--card);
   border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 2px rgba(46,66,88,.04);
 }
 .header-inner {
   max-width: 1180px;
@@ -57,12 +57,22 @@ body {
   align-items: center;
   gap: 28px;
 }
-.brand { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+.brand { display: flex; align-items: center; gap: 12px; cursor: pointer; user-select: none; }
 .brand-icon { height: 52.8px; width: auto; flex: none; object-fit: contain; }
-.brand-name { font-family: var(--serif); font-size: 24px; font-weight: 700; letter-spacing: .5px; color: var(--accent); }
+.brand-name {
+  font-family: var(--script);
+  font-size: 34px; /* 比原 28px 稍大，与左侧图标协调即可 */
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 1px;
+  color: var(--accent);
+  padding-bottom: 7px; /* 为花体字符下行部（如 y 的尾巴）预留空间，避免裁切 */
+  text-shadow: 0 1px 1px rgba(46,66,88,.08);
+}
 .brand-sub { font-size: 12px; color: var(--ink-faint); letter-spacing: 2px; }
 @media (max-width: 640px) {
   .brand-icon { height: 40.8px; }
+  .brand-name { font-size: 28px; padding-bottom: 5px; }
 }
 
 .nav-tabs { display: flex; gap: 4px; margin-left: 8px; flex: 1; }
@@ -360,20 +370,24 @@ button.stat-card.clickable { cursor: pointer; }
 .book-rating { font-size: 12.5px; color: var(--gold); margin-top: 3px; min-height: 1.6em; }
 .book-rating .votes { color: var(--ink-faint); margin-left: 4px; }
 
-/* 电子书醒目标签（卡片 / 清单：标题旁，与标题字符同字号） */
+/* 电子书醒目标签（卡片 / 清单：标题旁） */
 .ebook-badge {
   flex: none;
   display: inline-block;
-  padding: 1px 8px;
+  padding: 1px 7px;
   border-radius: 6px;
-  font-size: 1em;               /* 与标题字符同等大小 */
+  font-size: 0.78em;            /* 略小于标题字符，避免喧宾夺主 */
   font-weight: 600;
   line-height: 1.3;
   color: #fff;
   background: var(--teal);
   box-shadow: 0 0 0 1px rgba(102,163,191,.4);
   white-space: nowrap;
+  vertical-align: middle;
 }
+
+/* 清单弹窗：标题与标签之间留出空白 */
+.book-list-title .ebook-badge { margin-left: 8px; vertical-align: baseline; }
 
 .empty-state {
   grid-column: 1 / -1;
