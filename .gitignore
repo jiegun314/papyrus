@@ -12,3 +12,6 @@ data/ebooks/
 
 # 本地 HTTPS 自签名证书（npm run certs 生成）
 certs/
+
+# 本地打好的发布压缩包（release/，不提交；随 GitHub Release 附件分发）
+release/

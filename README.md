@@ -42,6 +42,53 @@ open http://localhost:5173
 
 > 📱 若要在**安卓真机上启用「扫码识别 ISBN」**（调起摄像头），需要让开发服务器以 **HTTPS** 提供页面 —— 具体见下文「HTTPS 与摄像头扫码（开发 & 正式）」。
 
+## 🏷️ v0.1.0 发布说明
+
+> 这是 Papyrus 的**第一个正式可发布版本（v0.1.0）**。下面说明该版本如何获取、安装与运行。
+
+### 获取发布包
+
+| 产物 | 说明 |
+|---|---|
+| 源码归档 *Source code*（tar.gz / zip） | GitHub 在 `v0.1.0` 标签自动生成，**不含 `dist/`，需自行构建** |
+| 预构建包 `papyrus-v0.1.0.tar.gz` | 源码 + `dist/`（含 `npm run build` 产物），**仍需 `npm install` 安装依赖**，可跳过构建 |
+
+> ⚠️ 依赖中的 `better-sqlite3` 是**原生模块（按平台编译）**，因此发布包**不包含 `node_modules`**，请在目标机器上重新 `npm install`。
+
+### 安装与运行（生产）
+
+```bash
+# 1. 解压（任选其一）
+tar -xzf papyrus-v0.1.0.tar.gz && cd papyrus-v0.1.0
+# 或：下载 GitHub 的「Source code (tar.gz)」自动归档后解压
+
+# 2. 安装依赖（Node.js ≥ 20.19，建议 22+）
+npm install --cache ./.npm-cache
+
+# 3. 构建（源码归档必备 / 预构建包已含 dist/ 可跳过）
+npm run build
+
+# 4. 启动（单进程 Express 同时托管 API 与前端页面）
+npm start                 # 或预构建包直接： node dist/server/index.js
+# 打开 http://localhost:3000
+```
+
+### 首次运行与数据迁移
+
+- 首次启动自动创建 `data/papyrus.db`（SQLite）并写入默认分类；封面缓存在 `data/covers/`、电子书在 `data/ebooks/`。
+- 升级 / 迁移时**整体拷贝 `data/` 目录**即可（数据库文件为 `data/papyrus.db`）。
+- 生产请确认 `PORT`（默认 3000）未被占用；健康检查 `GET /api/health` 返回 `{ "ok": true }`。
+
+### 摄像头扫码（需要 HTTPS）
+
+在**安卓真机 / 非 localhost 环境**使用「扫码识别 ISBN」需 HTTPS（`getUserMedia` 安全上下文约束）：
+
+```bash
+npm run certs     # 生成本地自签名 HTTPS 证书到 certs/
+```
+
+然后通过 HTTPS 访问服务（详见上文「HTTPS 与摄像头扫码（开发 & 正式）」）；`http://localhost:3000` 属本机安全上下文，可直接扫码。
+
 ### 生产模式
 
 ```bash

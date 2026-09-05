@@ -1,6 +1,6 @@
 {
   "name": "papyrus",
-  "version": "2.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Papyrus —— React 19 + TypeScript 个人书籍管理系统（豆瓣数据源 + SQLite 本地存储）",
   "type": "module",
