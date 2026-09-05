@@ -30,6 +30,13 @@ export function FilterBar({
     window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(commitSearch, 350);
   };
+  // 清空搜索：立即生效（取消防抖），供 ESC 键与右侧叉叉按钮使用。
+  const clearSearch = () => {
+    window.clearTimeout(timerRef.current);
+    textRef.current = '';
+    setText('');
+    commitSearch();
+  };
 
   const handleInput = (val: string) => {
     textRef.current = val;
@@ -56,13 +63,28 @@ export function FilterBar({
             scheduleSearch();
           }}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !composingRef.current) {
+            if (composingRef.current) return;
+            if (e.key === 'Enter') {
               e.preventDefault();
               window.clearTimeout(timerRef.current);
               commitSearch();
+            } else if (e.key === 'Escape' && text) {
+              clearSearch();
             }
           }}
         />
+        {text ? (
+          <button
+            type="button"
+            className="search-clear"
+            aria-label="清空搜索"
+            title="清空搜索"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={clearSearch}
+          >
+            ✕
+          </button>
+        ) : null}
       </div>
       <select
         className="select"

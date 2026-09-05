@@ -236,7 +236,7 @@ button.stat-card.clickable { cursor: pointer; }
 }
 .search-box input {
   width: 100%;
-  padding: 10px 14px 10px 38px;
+  padding: 10px 34px 10px 38px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--card);
@@ -248,6 +248,26 @@ button.stat-card.clickable { cursor: pointer; }
 }
 .search-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(51,104,160,.12); }
 .search-box .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--ink-faint); pointer-events: none; }
+.search-box .search-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-faint);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color .16s, background-color .16s;
+}
+.search-box .search-clear:hover { color: var(--ink); background: rgba(0,0,0,.06); }
 
 .select {
   appearance: none;
