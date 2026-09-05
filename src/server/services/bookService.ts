@@ -140,9 +140,22 @@ export function findBookByAmazonAsin(asin: string): Book | null {
   return row ? attachRelations([row])[0] : null;
 }
 
-/** 新建书籍（手动录入或豆瓣导入） */
+/** 检查 Open Library work key 是否已存在 */
+export function findBookByOpenLibraryKey(key: string): Book | null {
+  const db = getDb();
+  const row = db.prepare('SELECT * FROM books WHERE open_library_key = ?').get(key) as any;
+  return row ? attachRelations([row])[0] : null;
+}
+
+/** 新建书籍（手动录入或豆瓣/Amazon/Open Library 导入） */
 export function createBook(
-  input: BookInput & { doubanId?: string | null; amazonAsin?: string | null; amazonUrl?: string | null }
+  input: BookInput & {
+    doubanId?: string | null;
+    amazonAsin?: string | null;
+    amazonUrl?: string | null;
+    openLibraryKey?: string | null;
+    openLibraryUrl?: string | null;
+  }
 ): number {
   const db = getDb();
   const stmt = db.prepare(`
@@ -150,13 +163,13 @@ export function createBook(
       douban_id, amazon_asin, isbn13, isbn10, title, subtitle, original_title, authors,
       publisher, pubdate, price, pages, binding, series, summary, author_intro,
       catalog, cover_url, cover_path, book_type, ebook_path, ebook_filename, ebook_size,
-      rating_average, rating_count, douban_url, amazon_url,
+      rating_average, rating_count, douban_url, amazon_url, open_library_key, open_library_url,
       category_id, reading_status, notes
     ) VALUES (
       @doubanId, @amazonAsin, @isbn13, @isbn10, @title, @subtitle, @originalTitle, @authors,
       @publisher, @pubdate, @price, @pages, @binding, @series, @summary, @authorIntro,
       @catalog, @coverUrl, @coverPath, @bookType, @ebookPath, @ebookFilename, @ebookSize,
-      @ratingAverage, @ratingCount, @doubanUrl, @amazonUrl,
+      @ratingAverage, @ratingCount, @doubanUrl, @amazonUrl, @openLibraryKey, @openLibraryUrl,
       @categoryId, @readingStatus, @notes
     )`);
 
@@ -188,6 +201,8 @@ export function createBook(
     ratingCount: input.ratingCount ?? null,
     doubanUrl: input.doubanUrl ?? null,
     amazonUrl: input.amazonUrl ?? null,
+    openLibraryKey: input.openLibraryKey ?? null,
+    openLibraryUrl: input.openLibraryUrl ?? null,
     categoryId: input.categoryId ?? null,
     readingStatus: input.readingStatus ?? 'unread',
     notes: input.notes?.trim() || null,

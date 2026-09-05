@@ -95,6 +95,8 @@ function migrate(db: Database.Database): void {
             rating_count   INTEGER,
             douban_url     TEXT,
             amazon_url     TEXT,
+            open_library_key TEXT,
+            open_library_url TEXT,
             category_id    INTEGER REFERENCES categories(id) ON DELETE SET NULL,
             reading_status TEXT NOT NULL DEFAULT 'unread' CHECK (reading_status IN ('unread','reading','read','abandoned')),
             notes          TEXT,
@@ -105,12 +107,14 @@ function migrate(db: Database.Database): void {
             id, douban_id, amazon_asin, isbn13, isbn10, title, subtitle, original_title, authors,
             publisher, pubdate, price, pages, binding, series, summary, author_intro,
             catalog, cover_url, cover_path, rating_average, rating_count, douban_url, amazon_url,
+            open_library_key, open_library_url,
             category_id, reading_status, notes, created_at, updated_at
           )
           SELECT
             id, douban_id, NULL, isbn13, isbn10, title, subtitle, original_title, authors,
             publisher, pubdate, price, pages, binding, series, summary, author_intro,
             catalog, cover_url, cover_path, rating_average, rating_count, douban_url, NULL,
+            NULL, NULL,
             category_id, 'unread', notes, created_at, updated_at
           FROM books;
           DROP TABLE books;
@@ -135,6 +139,10 @@ function migrate(db: Database.Database): void {
   addColumnIfMissing(db, 'books', 'ebook_path', 'TEXT');
   addColumnIfMissing(db, 'books', 'ebook_filename', 'TEXT');
   addColumnIfMissing(db, 'books', 'ebook_size', 'INTEGER');
+
+  // Open Library 数据源（v4）。唯一约束由 SCHEMA_SQL 的 idx_books_open_library_key 承担。
+  addColumnIfMissing(db, 'books', 'open_library_key', 'TEXT');
+  addColumnIfMissing(db, 'books', 'open_library_url', 'TEXT');
 
   // 阅读状态 / 载体类型筛选索引（每次启动都会确保存在）
   db.exec('CREATE INDEX IF NOT EXISTS idx_books_reading_status ON books(reading_status)');
@@ -175,6 +183,8 @@ export function rowToBook(row: Record<string, unknown>): any {
     doubanId: row.douban_id ?? null,
     amazonAsin: row.amazon_asin ?? null,
     amazonUrl: row.amazon_url ?? null,
+    openLibraryKey: row.open_library_key ?? null,
+    openLibraryUrl: row.open_library_url ?? null,
     isbn13: row.isbn13 ?? null,
     isbn10: row.isbn10 ?? null,
     title: row.title,

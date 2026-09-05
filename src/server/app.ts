@@ -9,6 +9,7 @@ import path from 'node:path';
 import { booksRouter } from './routes/books.js';
 import { doubanRouter } from './routes/douban.js';
 import { amazonRouter } from './routes/amazon.js';
+import { openLibraryRouter } from './routes/openLibrary.js';
 import { metaRouter } from './routes/meta.js';
 import { ROOT_DIR, COVERS_DIR, EBOOKS_DIR, getDb } from './db/index.js';
 
@@ -35,6 +36,7 @@ export function createApp(): express.Express {
   app.use('/api/books', booksRouter);
   app.use('/api/douban', doubanRouter);
   app.use('/api/amazon', amazonRouter);
+  app.use('/api/ol', openLibraryRouter);
   app.use('/api', metaRouter);
 
   // 健康检查

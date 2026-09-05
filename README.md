@@ -1,14 +1,15 @@
 # 📚 Papyrus · 个人书籍管理系统
 
-> React 19 + TypeScript 的个人书架管理工具：**豆瓣 / Amazon 双数据源元数据导入 + SQLite 本地存储 + 实体书 / 电子书载体类型 + 个人书评与阅读状态管理**，配一个暖色纸张质感的小清新 Web 界面。前端按功能模块化组织，后端为 Express + better-sqlite3，前后端共享 `src/shared/types.ts` 类型。
+> React 19 + TypeScript 的个人书架管理工具：**豆瓣 / Amazon / Open Library 三数据源元数据导入 + SQLite 本地存储 + 实体书 / 电子书载体类型 + 个人书评与阅读状态管理**，配一个暖色纸张质感的小清新 Web 界面。前端按功能模块化组织，后端为 Express + better-sqlite3，前后端共享 `src/shared/types.ts` 类型。
 
 ## ✨ 功能一览
 
-- **数据导入（双数据源）**
+- **数据导入（三数据源）**
   - **豆瓣**：按 ISBN 精确导入（支持 10/13 位，自动 302 跳转解析）、按书名 / 作者关键字搜索联想一键入库
   - **Amazon**：中文 / 英文书皆可，按 ASIN / ISBN 或搜索结果导入，无需登录凭证
+  - **Open Library**：公开书目云（openlibrary.org），按书名 / 作者关键字搜索或 ISBN 精确导入，自动聚合作品与英文版次信息
   - 自动抓取：封面（本地缓存）、内容简介、作者简介、目录、出版社、出版年、页数、装帧、定价、评分与评价数
-  - 同一本书自动去重（按豆瓣 subject id / Amazon ASIN）
+  - 同一本书自动去重（按豆瓣 subject id / Amazon ASIN / Open Library work key）
 - **书架管理**
   - 关键字搜索（书名 / 作者 / ISBN / 出版社）、分类 / 阅读状态 / 载体类型筛选
   - 手动录入 / 编辑书籍全部字段；封面与电子书支持本地上传
@@ -57,7 +58,7 @@ npm start        # node dist/server/index.js（Express 同时托管 API 与 dist
 |---|---|
 | Node.js | `>= 20.19`（建议 22 LTS，ESM 项目） |
 | 包管理器 | npm（可加 `--cache ./.npm-cache` 走本地缓存，避免重复下载） |
-| 网络 | 导入豆瓣 / Amazon 数据需能访问对应站点；封面下载带 Referer 防盗链 |
+| 网络 | 导入豆瓣 / Amazon / Open Library 数据需能访问对应站点；封面下载带 Referer 防盗链 |
 | 端口 | 默认 `3000`（后端，生产同时提供 Web 资源） |
 
 ### 🛠 开发模式（本地开发 / 调试）
@@ -98,7 +99,7 @@ npm start          # 等价于 npm run build && node dist/server/index.js
 data/
 ├── papyrus.db       # SQLite 主库（WAL 模式）
 ├── papyrus.db-wal   # WAL 日志（-journal / -shm 同理）
-├── covers/          # 豆瓣 / Amazon 封面本地缓存
+├── covers/          # 豆瓣 / Amazon / Open Library 封面本地缓存
 └── ebooks/          # 上传的电子书文件
 ```
 
@@ -224,13 +225,13 @@ papyrus/
 │   │   ├── index.ts                 # 服务入口（优雅退出、端口监听、未捕获兜底）
 │   │   ├── app.ts                   # Express 组装 + dist/client 生产托管 + /covers /ebooks 静态
 │   │   ├── db/                      # schema.ts（建表 + 默认分类）+ 连接单例 + 目录常量
-│   │   ├── services/                # douban / amazon / cover / ebook / bookService
-│   │   └── routes/                  # books / douban / amazon / meta
+│   │   ├── services/                # douban / amazon / openLibrary / cover / ebook / bookService
+│   │   └── routes/                  # books / douban / amazon / openLibrary / meta
 │   └── client/                      # ★ React 19 SPA（Vite 构建）
 │       ├── index.html               # Vite 入口（root = src/client）
 │       ├── main.tsx                 # React 挂载
 │       ├── app/                     # 应用外壳（App、路由、全局刷新）
-│       ├── api/                     # fetch 封装 + books / douban / amazon / meta 分域接口
+│       ├── api/                     # fetch 封装 + books / douban / amazon / openLibrary / meta 分域接口
 │       ├── components/              # 通用 UI：Modal / Toast / 评分 / 封面…
 │       ├── features/                # ★ 按功能模块化
 │       │   ├── shelf/               #   书架主页（分组统计卡 + 筛选栏 + 网格）
@@ -251,7 +252,7 @@ papyrus/
 - **数据库**：SQLite（`better-sqlite3`），默认 `data/papyrus.db`
   - WAL 模式 + 外键级联（删除书籍自动清理书评 / 标签关联）
   - 启动时自动迁移旧库结构（借出状态 `status` → 阅读状态 `reading_status`），并自动补写默认分类
-- **封面**：抓取豆瓣 / Amazon 封面后下载到 `data/covers/`，通过 `/covers/*` 静态服务访问（带对应 Referer 绕过防盗链，30 天强缓存）
+- **封面**：抓取豆瓣 / Amazon / Open Library 封面后下载到 `data/covers/`，通过 `/covers/*` 静态服务访问（带对应 Referer 绕过防盗链，30 天强缓存）
 - **电子书**：上传文件保存在 `data/ebooks/`，通过 `/ebooks/*` 在线预览，下载走 `/api/books/:id/ebook/download`
 
 ## 📖 API 一览
@@ -293,6 +294,14 @@ papyrus/
 | GET | `/api/amazon/book?asin=xxx` 或 `?isbn=xxx` | 抓取详情预览（不保存） |
 | POST | `/api/amazon/save` | 抓取并保存，body `{ asin }` / `{ isbn }` / `{ searchResult }`，可带 `bookType` |
 
+### Open Library
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/ol/search?q=关键词` | 书名 / 作者 / ISBN 搜索（自动识别 ISBN 走精确匹配） |
+| GET | `/api/ol/book?key=xxx` 或 `?isbn=xxx`（可带 `cover_i`） | 抓取详情预览（不保存） |
+| POST | `/api/ol/save` | 抓取并保存，body `{ key }` / `{ isbn }` / `{ searchResult }`，可带 `bookType` |
+
 ### 元数据
 
 | 方法 | 路径 | 说明 |
@@ -307,7 +316,7 @@ papyrus/
 
 ## 🌐 数据源说明
 
-两个数据源均无稳定官方 API，本项目直接抓取页面 / 接口解析（`cheerio`）：
+两个数据源均无稳定官方 API，本项目直接抓取页面 / 接口解析（`cheerio`）；Open Library 则走其公开检索接口：
 
 - **豆瓣**（`src/server/services/douban.ts`）
   - 搜索联想：`https://book.douban.com/j/subject_suggest?q=xxx`（JSON）
@@ -316,10 +325,13 @@ papyrus/
 - **Amazon**（`src/server/services/amazon.ts`）
   - 搜索：解析 `amazon.com/s?k=xxx` 的搜索结果卡片
   - 详情：按 ASIN / ISBN 抓取商品页，解析封面、书名、作者、出版社、出版年、ISBN 等
+- **Open Library**（`src/server/services/openLibrary.ts`）
+  - 搜索：`https://openlibrary.org/search.json?q=xxx`（自动识别 ISBN 走 `isbn:` 精确匹配）
+  - 详情：`https://openlibrary.org/search.json?q=key:<work_key>`；ISBN、封面（`covers.openlibrary.org`）与版次信息来自其书目云
 
 **反爬策略应对**：
 
-- 所有请求带浏览器 User-Agent；封面下载带对应站点的 `Referer`（豆瓣 / `m.media-amazon.com`）
+- 所有请求带浏览器 User-Agent；封面下载带对应站点的 `Referer`（豆瓣 / `m.media-amazon.com` / `openlibrary.org`）
 - 豆瓣抓取间隔 **800ms 节流**，避免频率过高被 403
 - 偶发 403 时请稍后重试，或降低并发导入频率；封面失败可在详情弹窗手动「重新下载封面」
 
@@ -329,7 +341,7 @@ papyrus/
 - **前端功能模块**：每个页面/弹窗对应 `src/client/features/<功能>/` 下的一个目录，互不耦合
 - **默认分类**：`src/server/db/schema.ts` 的 `DEFAULT_CATEGORIES`
 - **载体类型 / 阅读状态文案**：`src/client/lib/bookType.ts`、`src/client/lib/readingStatus.ts` 中的常量与展示映射
-- **导入源切换 / 搜索接口**：豆瓣改 `src/server/services/douban.ts`、Amazon 改 `src/server/services/amazon.ts`
+- **导入源切换 / 搜索接口**：豆瓣改 `src/server/services/douban.ts`、Amazon 改 `src/server/services/amazon.ts`、Open Library 改 `src/server/services/openLibrary.ts`
 - **上传体积限制**：`src/server/app.ts` 的 `express.json({ limit: '2mb' })`；封面上传 `routes/books.ts` 的 `raw({ limit: '20mb' })`；电子书 `raw({ limit: '100mb' })`，可按需调整
 - **端口**：后端环境变量 `PORT`（默认 3000）；前端开发端口由 `vite.config.ts` 的 `server.port` 控制（默认 5173）
 

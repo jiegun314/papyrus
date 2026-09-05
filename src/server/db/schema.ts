@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS books (
   rating_count   INTEGER,
   douban_url     TEXT,
   amazon_url     TEXT,
+  open_library_key TEXT,                          -- Open Library work key
+  open_library_url TEXT,                          -- Open Library 作品页 URL
   category_id    INTEGER REFERENCES categories(id) ON DELETE SET NULL,
   reading_status TEXT NOT NULL DEFAULT 'unread' CHECK (reading_status IN ('unread','reading','read','abandoned')),
   notes          TEXT,
@@ -55,6 +57,7 @@ CREATE INDEX IF NOT EXISTS idx_books_title ON books(title);
 CREATE INDEX IF NOT EXISTS idx_books_isbn ON books(isbn13, isbn10);
 CREATE INDEX IF NOT EXISTS idx_books_category ON books(category_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_books_amazon_asin ON books(amazon_asin);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_books_open_library_key ON books(open_library_key);
 CREATE INDEX IF NOT EXISTS idx_books_book_type ON books(book_type);
 
 -- 标签表

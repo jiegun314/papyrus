@@ -20,6 +20,10 @@ export interface Book {
   amazonAsin: string | null;
   /** Amazon 详情页 URL */
   amazonUrl: string | null;
+  /** Open Library work key（可选，非 Open Library 导入的书籍为空） */
+  openLibraryKey: string | null;
+  /** Open Library 作品页 URL */
+  openLibraryUrl: string | null;
   isbn13: string | null;
   isbn10: string | null;
   title: string;
@@ -156,6 +160,24 @@ export interface AmazonSearchResult {
   isbn?: string;
 }
 
+/** Open Library 搜索结果条目（作品级聚合） */
+export interface OpenLibrarySearchResult {
+  key: string;            // work key，如 /works/OL45883W
+  title: string;
+  subtitle?: string;
+  authors?: string;       // 作者（逗号分隔）
+  coverUrl?: string;      // 封面中图 URL（从 cover_i 构造）
+  coverId?: number;       // Open Library cover id（用于请求大图）
+  firstPublishYear?: number;
+  editionCount?: number;
+  isbn?: string;
+  publisher?: string;
+  pages?: number;
+  language?: string[];
+  ratingAverage?: number | null;
+  ratingCount?: number | null;
+}
+
 /** 新建/更新书籍的载荷（手动录入表单） */
 export interface BookInput {
   title: string;
@@ -194,6 +216,9 @@ export interface BookInput {
   /* 以下字段仅 Amazon 导入时使用（手动表单不会用到） */
   amazonAsin?: string | null;
   amazonUrl?: string | null;
+  /* 以下字段仅 Open Library 导入时使用（手动表单不会用到） */
+  openLibraryKey?: string | null;
+  openLibraryUrl?: string | null;
 }
 
 /** API 统一错误响应 */

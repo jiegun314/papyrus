@@ -461,6 +461,8 @@ button.stat-card.clickable { cursor: pointer; }
 }
 .modal.small { max-width: 460px; }
 .modal.medium { max-width: 640px; }
+/* 较大弹窗（如添加书籍：四个导入标签需在单行展示） */
+.modal.large { max-width: 760px; }
 .modal-header {
   display: flex;
   align-items: center;
@@ -576,6 +578,8 @@ button.stat-card.clickable { cursor: pointer; }
   cursor: pointer;
   transition: all .16s;
   font-family: var(--sans);
+  /* 保证每个标签标题（含「③ Open Library 导入」等长文案）始终单行显示 */
+  white-space: nowrap;
 }
 .tabs .tab.active { background: var(--card); color: var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,.08); }
 

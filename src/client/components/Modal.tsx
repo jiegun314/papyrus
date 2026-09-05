@@ -11,7 +11,7 @@ export interface ModalProps {
   title?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
-  /** 附加尺寸类：'' | 'small' | 'medium' */
+  /** 附加尺寸类：'' | 'small' | 'medium' | 'large' */
   size?: string;
   /** 是否可点遮罩 / Esc 关闭 */
   dismissible?: boolean;
