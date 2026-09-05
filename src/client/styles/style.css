@@ -1330,7 +1330,9 @@ button.stat-card.clickable { cursor: pointer; }
 .scanner-video-wrap {
   position: relative;
   background: #000;
-  aspect-ratio: 3 / 4;
+  /* 用固定高度而非 aspect-ratio，避免在安卓小屏/横屏下溢出，取景框更稳定 */
+  height: min(58vh, 520px);
+  width: 100%;
 }
 .scanner-video {
   width: 100%;

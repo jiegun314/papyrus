@@ -26,6 +26,28 @@ function deriveIsbn(text: string): string | null {
   return null;
 }
 
+/**
+ * 逐个构造越来越宽松的摄像头约束，兼容安卓/不同浏览器的差异：
+ * 优先后置（environment）高清 → 后置默认 → 任意 → 前置兜底。
+ */
+async function openCameraStream(md: MediaDevices): Promise<MediaStream> {
+  const attempts: MediaStreamConstraints[] = [
+    { audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+    { audio: false, video: { facingMode: { ideal: 'environment' } } },
+    { audio: false, video: true },
+    { audio: false, video: { facingMode: { ideal: 'user' } } },
+  ];
+  let lastErr: unknown;
+  for (const c of attempts) {
+    try {
+      return await md.getUserMedia(c);
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr ?? new Error('NO_CAMERA');
+}
+
 /** 把浏览器给出的摄像头异常映射成更容易理解的中文提示。 */
 function describeCameraError(err: unknown): string {
   const name = (err as { name?: string })?.name ?? '';
@@ -53,6 +75,8 @@ export function IsbnScanner({
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
+  // 自己主动获取的麦克风/摄像头流，用于在异常路径下兜底释放摄像头。
+  const mediaStreamRef = useRef<MediaStream | null>(null);
   const detectedRef = useRef(false);
   const onDetectRef = useRef(onDetect);
   const onCloseRef = useRef(onClose);
@@ -89,16 +113,25 @@ export function IsbnScanner({
 
     const run = async () => {
       try {
-        const controls = await reader.decodeFromConstraints(
-          {
-            audio: false,
-            video: {
-              // facingMode: 'environment' 尽量选后置摄像头；设备不支持时浏览器会自动回退到可用的摄像头。
-              facingMode: 'environment',
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-            },
-          },
+        // 摄像头权限只在「安全上下文」（HTTPS 或 localhost）下可用。
+        // 安卓上若用 http://<局域网IP> 访问开发服务器，浏览器会直接禁用摄像头，这里给出明确提示。
+        if (!globalThis.isSecureContext) {
+          setError('当前页面不是安全上下文，浏览器已禁用摄像头。请改用 https:// 或 localhost 访问本站后重试。');
+          setStarting(false);
+          return;
+        }
+        const md = navigator.mediaDevices;
+        if (!md || typeof md.getUserMedia !== 'function') {
+          setError('当前浏览器不支持调用摄像头，请使用新版 Chrome / Edge / Safari。');
+          setStarting(false);
+          return;
+        }
+
+        const stream = await openCameraStream(md);
+        mediaStreamRef.current = stream;
+
+        const controls = await reader.decodeFromStream(
+          stream,
           videoRef.current ?? undefined,
           (result, _err, ctrl) => {
             if (!result) return; // 每帧未识别到条形码属于正常情况，忽略
@@ -131,6 +164,13 @@ export function IsbnScanner({
         /* 释放摄像头时失败可忽略 */
       }
       controlsRef.current = null;
+      // 兜底：显式停止摄像头轨道，确保安卓上摄像头指示灯熄灭。
+      try {
+        mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+      } catch {
+        /* 忽略 */
+      }
+      mediaStreamRef.current = null;
     };
   }, [open]);
 
