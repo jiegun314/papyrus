@@ -11,6 +11,7 @@ import { openLibraryPreview, openLibrarySave, openLibrarySearch } from '../../ap
 import { errorMessage } from '../../api/http';
 import { listCategories } from '../../api/meta';
 import { EmptyState } from '../../components/EmptyState';
+import { IsbnScanner } from '../../components/IsbnScanner';
 import { Loading } from '../../components/Loading';
 import { Modal } from '../../components/Modal';
 import { useToast } from '../../components/Toast';
@@ -147,9 +148,10 @@ function DoubanPanel({ onSaved, bookType }: { onSaved: () => void; bookType: Boo
   );
   const [busy, setBusy] = useState<{ preview?: string; save?: string }>({});
   const [preview, setPreview] = useState<{ detail: Record<string, unknown>; item: DoubanSearchResult } | null>(null);
+  const [scanning, setScanning] = useState(false);
 
-  const doSearch = async () => {
-    const keyword = q.trim();
+  const doSearch = async (kw?: string) => {
+    const keyword = (kw ?? q).trim();
     if (!keyword) {
       toast('请输入搜索内容', 'error');
       return;
@@ -169,6 +171,12 @@ function DoubanPanel({ onSaved, bookType }: { onSaved: () => void; bookType: Boo
       setSearching(false);
       setFeedback({ kind: 'error', text: errorMessage(e) });
     }
+  };
+
+  const handleScan = (isbn: string) => {
+    setQ(isbn);
+    setScanning(false);
+    void doSearch(isbn);
   };
 
   const handlePreview = async (item: DoubanSearchResult) => {
@@ -207,8 +215,16 @@ function DoubanPanel({ onSaved, bookType }: { onSaved: () => void; bookType: Boo
             if (e.key === 'Enter') doSearch();
           }}
         />
-        <button type="button" className="btn btn-primary" onClick={doSearch} disabled={searching}>
+        <button type="button" className="btn btn-primary" onClick={() => void doSearch()} disabled={searching}>
           {searching ? '搜索中…' : '搜索'}
+        </button>
+        <button
+          type="button"
+          className="btn"
+          title="用摄像头扫描书籍条码，自动识别 ISBN"
+          onClick={() => setScanning(true)}
+        >
+          📷 扫码
         </button>
       </div>
 
@@ -266,6 +282,11 @@ function DoubanPanel({ onSaved, bookType }: { onSaved: () => void; bookType: Boo
       </div>
 
       {preview ? <PreviewPanel detail={preview.detail} item={preview.item} /> : null}
+      <IsbnScanner
+        open={scanning}
+        onClose={() => setScanning(false)}
+        onDetect={handleScan}
+      />
     </div>
   );
 }
@@ -328,9 +349,10 @@ function AmazonPanel({ onSaved, bookType }: { onSaved: () => void; bookType: Boo
   });
   const [busy, setBusy] = useState<{ preview?: string; save?: string }>({});
   const [preview, setPreview] = useState<{ detail: Record<string, unknown>; item: AmazonSearchResult } | null>(null);
+  const [scanning, setScanning] = useState(false);
 
-  const doSearch = async () => {
-    const keyword = q.trim();
+  const doSearch = async (kw?: string) => {
+    const keyword = (kw ?? q).trim();
     if (!keyword) {
       toast('请输入搜索内容', 'error');
       return;
@@ -350,6 +372,12 @@ function AmazonPanel({ onSaved, bookType }: { onSaved: () => void; bookType: Boo
       setSearching(false);
       setFeedback({ kind: 'error', text: errorMessage(e) });
     }
+  };
+
+  const handleScan = (isbn: string) => {
+    setQ(isbn);
+    setScanning(false);
+    void doSearch(isbn);
   };
 
   const handlePreview = async (item: AmazonSearchResult) => {
@@ -388,8 +416,16 @@ function AmazonPanel({ onSaved, bookType }: { onSaved: () => void; bookType: Boo
             if (e.key === 'Enter') doSearch();
           }}
         />
-        <button type="button" className="btn btn-primary" onClick={doSearch} disabled={searching}>
+        <button type="button" className="btn btn-primary" onClick={() => void doSearch()} disabled={searching}>
           {searching ? '搜索中…' : '搜索'}
+        </button>
+        <button
+          type="button"
+          className="btn"
+          title="用摄像头扫描书籍条码，自动识别 ISBN"
+          onClick={() => setScanning(true)}
+        >
+          📷 扫码
         </button>
       </div>
 
@@ -443,6 +479,11 @@ function AmazonPanel({ onSaved, bookType }: { onSaved: () => void; bookType: Boo
       </div>
 
       {preview ? <AmazonPreviewPanel detail={preview.detail} item={preview.item} /> : null}
+      <IsbnScanner
+        open={scanning}
+        onClose={() => setScanning(false)}
+        onDetect={handleScan}
+      />
     </div>
   );
 }
@@ -502,9 +543,10 @@ function OpenLibraryPanel({ onSaved, bookType }: { onSaved: () => void; bookType
   });
   const [busy, setBusy] = useState<{ preview?: string; save?: string }>({});
   const [preview, setPreview] = useState<{ detail: Record<string, unknown>; item: OpenLibrarySearchResult } | null>(null);
+  const [scanning, setScanning] = useState(false);
 
-  const doSearch = async () => {
-    const keyword = q.trim();
+  const doSearch = async (kw?: string) => {
+    const keyword = (kw ?? q).trim();
     if (!keyword) {
       toast('请输入搜索内容', 'error');
       return;
@@ -522,6 +564,12 @@ function OpenLibraryPanel({ onSaved, bookType }: { onSaved: () => void; bookType
       setSearching(false);
       setFeedback({ kind: 'error', text: errorMessage(e) });
     }
+  };
+
+  const handleScan = (isbn: string) => {
+    setQ(isbn);
+    setScanning(false);
+    void doSearch(isbn);
   };
 
   const handlePreview = async (item: OpenLibrarySearchResult) => {
@@ -559,8 +607,16 @@ function OpenLibraryPanel({ onSaved, bookType }: { onSaved: () => void; bookType
             if (e.key === 'Enter') doSearch();
           }}
         />
-        <button type="button" className="btn btn-primary" onClick={doSearch} disabled={searching}>
+        <button type="button" className="btn btn-primary" onClick={() => void doSearch()} disabled={searching}>
           {searching ? '搜索中…' : '搜索'}
+        </button>
+        <button
+          type="button"
+          className="btn"
+          title="用摄像头扫描书籍条码，自动识别 ISBN"
+          onClick={() => setScanning(true)}
+        >
+          📷 扫码
         </button>
       </div>
 
@@ -620,6 +676,11 @@ function OpenLibraryPanel({ onSaved, bookType }: { onSaved: () => void; bookType
       </div>
 
       {preview ? <OpenLibraryPreviewPanel detail={preview.detail} item={preview.item} /> : null}
+      <IsbnScanner
+        open={scanning}
+        onClose={() => setScanning(false)}
+        onDetect={handleScan}
+      />
     </div>
   );
 }

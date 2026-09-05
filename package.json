@@ -19,6 +19,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.server.json && tsc --noEmit -p src/client/tsconfig.json"
   },
   "dependencies": {
+    "@zxing/browser": "^0.1.5",
+    "@zxing/library": "^0.21.3",
     "better-sqlite3": "^11.10.0",
     "cheerio": "^1.0.0",
     "express": "^4.21.2",
@@ -38,4 +40,3 @@
     "vite": "^8.2.2"
   }
 }
-
