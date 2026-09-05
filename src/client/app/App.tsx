@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom';
 import { AddBookModal } from '../features/douban/AddBookModal';
+import { BackToTop } from '../components/BackToTop';
 import { ShelfPage } from '../features/shelf/ShelfPage';
 import { TagsPage } from '../features/tags/TagsPage';
 import { CategoriesPage } from '../features/categories/CategoriesPage';
@@ -63,6 +64,8 @@ export function App() {
       </main>
 
       <AddBookModal open={addOpen} onClose={() => setAddOpen(false)} onSaved={handleBookSaved} />
+
+      <BackToTop />
     </>
   );
 }
