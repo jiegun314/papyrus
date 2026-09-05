@@ -40,6 +40,8 @@ open http://localhost:5173
 - 后端可用环境变量 `PORT` 指定端口（默认 3000）；
 - 首次启动会自动创建 `data/papyrus.db`（SQLite）并写入默认分类。
 
+> 📱 若要在**安卓真机上启用「扫码识别 ISBN」**（调起摄像头），需要让开发服务器以 **HTTPS** 提供页面 —— 具体见下文「HTTPS 与摄像头扫码（开发 & 正式）」。
+
 ### 生产模式
 
 ```bash
@@ -90,6 +92,69 @@ npm start          # 等价于 npm run build && node dist/server/index.js
 - 健康检查：`GET /api/health` 返回 `{ "ok": true }`。
 
 > ⚠️ 生产请确保 `PORT` 未被占用；首次启动自动建库并写入默认分类。
+
+### 🔒 HTTPS 与摄像头扫码（开发 & 正式）
+
+> 浏览器规定：**只有 HTTPS（或 localhost）才能调用摄像头**（`getUserMedia`）。所以「扫码识别 ISBN 条形码」功能必须跑在 HTTPS 下。
+>
+> 开发环境默认是 `http://localhost:5173`（本机 localhost 属于安全上下文，Mac 上能正常扫码）；但**安卓真机**访问开发机时用的是 `http://<局域网IP>`，**不是安全上下文**，浏览器会直接禁用摄像头 —— 因此需要给开发服务器加 HTTPS。
+
+#### 🧪 调试 / 开发环境
+
+1. 生成一张本地自签名证书（含 `localhost`、`127.0.0.1` 和当前局域网 IP 的 SAN）：
+
+   ```bash
+   npm run certs          # 首次生成一次；换 Wi-Fi / IP 变化后重新生成：npm run certs -- --force
+   ```
+
+   产物：`certs/{key,cert}.pem`（已被 `.gitignore` 忽略，不会入库）。
+
+2. 启动开发服务器（Vite 检测到证书后自动切到 **HTTPS** 并监听局域网网卡）：
+
+   ```bash
+   npm run dev
+   ```
+
+   终端会显示：
+
+   ```
+   ➜  Local:   https://localhost:5173/
+   ➜  Network: https://192.168.71.223:5173/  en0
+   ```
+
+3. **安卓真机**：与电脑连同一 Wi-Fi，浏览器打开 `https://<局域网IP>:5173`（例如 `https://192.168.71.223:5173`）。这是自签名证书，手机先点「高级 → 继续前往 …（不安全）」进入即可，随后可正常授权摄像头扫码。
+
+> 💡 若安卓 Chrome 对自签名证书**仍拒绝授权摄像头**，两条更稳的路：
+>
+> - **mkcert**（推荐）：生成由本地 CA 签发的证书（会自动签发一张 CA），并把 CA 证书导入手机「设置 → 安全 → 加密与凭据 → 安装证书 → CA 证书」。此后不再出现警告，必定可用摄像头。
+> - **adb reverse（零证书）**：手机开 USB 调试连电脑，执行 `adb reverse tcp:5173 tcp:5173`，手机访问 `http://localhost:5173` —— 手机上的 localhost 始终是安全上下文，无需 HTTPS。
+>
+> 只启动前端调试并用证书：`npm run dev:client` 同样会自动读取证书并切到 HTTPS。
+
+#### 🚀 正式 / 生产环境
+
+生产是**单进程 Express 同时托管 API 与前端**（`dist/client`），默认监听 **HTTP** `http://localhost:3000`。要启用 HTTPS，推荐把 **TLS 终止放到 Express 前面**（由域名 / 平台签发正式证书），浏览器即视为安全上下文：
+
+- **云平台托管**（Render / Vercel / Railway / 各类轻量服务器托管等）：在平台侧打开 HTTPS 即可，无需自签证书。
+- **Nginx / Traefik / Caddy 反向代理**：由代理提供 `https://你的域名` 的证书，把流量转发到本机 `http://localhost:3000`。以 Nginx 为例：
+
+  ```nginx
+  server {
+    listen 443 ssl;
+    server_name your.domain.com;
+
+    ssl_certificate     /etc/letsencrypt/live/your.domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your.domain.com/privkey.pem;
+
+    location / {
+      proxy_pass http://127.0.0.1:3000;
+      proxy_set_header Host $host;
+      proxy_set_header X-Forwarded-Proto $scheme;
+    }
+  }
+  ```
+
+  之后访问 `https://your.domain.com`，安卓 / 手机等设备即可正常使用「扫码识别 ISBN」。
 
 ### 🗄 数据持久化与备份
 
@@ -355,6 +420,7 @@ npm run dev:client    # 仅前端 Vite dev server（5173）
 npm run build:client  # 构建 React 前端 → dist/client
 npm run build:server  # tsc 编译后端 → dist/server
 npm run build         # 二者全做
+npm run certs         # 生成本地 HTTPS 自签名证书（certs/，供安卓真机扫码调试）
 ```
 
 ## 🐞 VS Code 调试
