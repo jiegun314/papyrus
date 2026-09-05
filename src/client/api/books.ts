@@ -30,7 +30,7 @@ export function getBook(id: number): Promise<Book> {
   return request<Book>(`/api/books/${id}`);
 }
 
-/** 重新下载封面（豆瓣导入时下载失败后手动重试） */
+/** 重新下载封面（豆瓣 / Amazon / Open Library 导入时均可手动重试） */
 export function retryCover(id: number): Promise<Book> {
   return request<Book>(`/api/books/${id}/cover`, { method: 'POST' });
 }

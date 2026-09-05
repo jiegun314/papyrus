@@ -14,8 +14,10 @@ import {
 import { downloadCover, saveCoverImage } from '../services/cover.js';
 import { buildEbookDownloadName, saveEbookFile } from '../services/ebook.js';
 import { fetchBookDetail, fetchBookByIsbn } from '../services/douban.js';
+import { fetchAmazonDetail, fetchAmazonByIsbn } from '../services/amazon.js';
+import { fetchOpenLibraryDetail, fetchOpenLibraryByIsbn } from '../services/openLibrary.js';
 import { EBOOKS_DIR } from '../db/index.js';
-import type { BookInput, ReadingStatus } from '../../shared/types.js';
+import type { Book, BookInput, ReadingStatus } from '../../shared/types.js';
 
 export const booksRouter = Router();
 
@@ -169,35 +171,107 @@ booksRouter.post('/:id/category', (req, res) => {
 
 /* ---------- 封面 ---------- */
 
-// POST /api/books/:id/cover —— 重新下载封面（此前豆瓣导入时下载失败可手动重试）
+/** 各数据源封面下载所带的 Referer */
+const DOUBAN_REFERER = 'https://book.douban.com/';
+const AMAZON_REFERER = 'https://www.amazon.com/';
+const OPENLIBRARY_REFERER = 'https://openlibrary.org/';
+
+/** 依据书籍来源挑选 Referer（用于已保存封面 URL 的兜底下载） */
+function refererFor(book: Book): string {
+  if (book.amazonAsin) return AMAZON_REFERER;
+  if (book.openLibraryKey) return OPENLIBRARY_REFERER;
+  return DOUBAN_REFERER;
+}
+
+/**
+ * 解析一本书「重新下载封面」所用的封面地址与本地文件名 / Referer。
+ * 按数据源抓取最新详情以拿到最新封面（Amazon / Open Library / 豆瓣），
+ * 失败时回退到已保存的 coverUrl，最底兜底尝试按 ISBN 依次请求各个数据源。
+ */
+async function resolveCoverSource(
+  book: Book
+): Promise<{ url: string; name: string | null; referer: string } | null> {
+  // 1) 优先按来源重新抓取详情，拿到最新封面地址
+  if (book.amazonAsin) {
+    try {
+      const d = await fetchAmazonDetail(book.amazonAsin);
+      const url = d.coverUrl as string | undefined;
+      if (url) return { url, name: book.amazonAsin, referer: AMAZON_REFERER };
+    } catch {
+      /* 抓取失败，落入下面的回退 */
+    }
+  }
+  if (book.openLibraryKey) {
+    try {
+      const d = await fetchOpenLibraryDetail(book.openLibraryKey);
+      const url = d.coverUrl as string | undefined;
+      if (url)
+        return { url, name: book.openLibraryKey.replace('/works/', ''), referer: OPENLIBRARY_REFERER };
+    } catch {
+      /* ignore */
+    }
+  }
+  if (book.doubanId) {
+    try {
+      const d = await fetchBookDetail(book.doubanId);
+      const url = d.coverUrl as string | undefined;
+      if (url) return { url, name: book.doubanId, referer: DOUBAN_REFERER };
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // 2) 已保存的封面地址（可能已失效，但至少指向一个来源）
+  if (book.coverUrl) {
+    const name =
+      book.amazonAsin ?? book.openLibraryKey?.replace('/works/', '') ?? book.doubanId ?? null;
+    return { url: book.coverUrl, name, referer: refererFor(book) };
+  }
+
+  // 3) 仅剩 ISBN：依次尝试 豆瓣 → Amazon → Open Library
+  const isbn = book.isbn13 ?? book.isbn10;
+  if (isbn) {
+    const attempts: Array<{ fetch: () => Promise<Record<string, unknown>>; referer: string }> = [
+      { fetch: () => fetchBookByIsbn(isbn), referer: DOUBAN_REFERER },
+      { fetch: () => fetchAmazonByIsbn(isbn), referer: AMAZON_REFERER },
+      { fetch: () => fetchOpenLibraryByIsbn(isbn), referer: OPENLIBRARY_REFERER },
+    ];
+    for (const a of attempts) {
+      try {
+        const d = await a.fetch();
+        const url = d.coverUrl as string | undefined;
+        if (!url) continue;
+        const name =
+          (d.asin as string | undefined) ??
+          (d.openLibraryKey as string | undefined)?.replace('/works/', '') ??
+          (d.doubanId as string | undefined) ??
+          null;
+        return { url, name, referer: a.referer };
+      } catch {
+        continue;
+      }
+    }
+  }
+
+  return null;
+}
+
+// POST /api/books/:id/cover —— 重新下载封面（豆瓣 / Amazon / Open Library 均可手动重试）
 booksRouter.post('/:id/cover', async (req, res) => {
   const id = Number(req.params.id);
   const book = getBook(id);
   if (!book) return res.status(404).json({ error: '书籍不存在' });
 
-  // 优先用已保存的豆瓣封面地址；没有则尝试从豆瓣重新抓取详情
-  let coverUrl = book.coverUrl;
-  if (!coverUrl) {
-    try {
-      const detail = book.doubanId
-        ? await fetchBookDetail(book.doubanId)
-        : book.isbn13 || book.isbn10
-          ? await fetchBookByIsbn(book.isbn13 ?? book.isbn10!)
-          : null;
-      coverUrl = (detail?.coverUrl as string | null) ?? null;
-    } catch (e: any) {
-      return res.status(502).json({ error: `重新获取封面信息失败：${e.message}` });
-    }
-  }
-
-  if (!coverUrl) {
-    return res.status(400).json({ error: '这本书没有可用的封面来源（未关联豆瓣）' });
+  const source = await resolveCoverSource(book);
+  if (!source?.url) {
+    return res.status(400).json({ error: '这本书没有可用的封面来源' });
   }
 
   try {
-    const localPath = await downloadCover(book.doubanId, coverUrl, book.title);
+    // force=true：即使本地已缓存同名封面也重新下载，保证「重下」真正生效
+    const localPath = await downloadCover(source.name, source.url, book.title, source.referer, true);
     if (!localPath) {
-      return res.status(502).json({ error: '封面下载失败（豆瓣可能暂时拒绝请求），请稍后再试' });
+      return res.status(502).json({ error: '封面下载失败，请稍后再试' });
     }
     setBookCoverPath(id, localPath);
     res.json(getBook(id));

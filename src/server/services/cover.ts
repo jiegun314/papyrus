@@ -14,21 +14,22 @@ import { COVERS_DIR } from '../db/index.js';
 
 /** 下载封面到本地，返回本地访问路径（如 /covers/abc123.jpg）；失败返回 null */
 export async function downloadCover(
-  doubanId: string | null,
+  name: string | null,
   url: string,
   fallbackName?: string,
-  referer: string = 'https://book.douban.com/'
+  referer: string = 'https://book.douban.com/',
+  force = false
 ): Promise<string | null> {
   if (!url) return null;
 
-  // 文件名：优先用豆瓣 id / ASIN，其次用书名哈希
-  const name = doubanId || fallbackName || 'cover';
+  // 文件名：优先用 ASIN / 豆瓣 id / 作品 key，其次用书名
+  const baseName = name || fallbackName || 'cover';
   const ext = guessExtension(url);
-  const filename = `${sanitize(name)}${ext}`;
+  const filename = `${sanitize(baseName)}${ext}`;
   const target = path.join(COVERS_DIR, filename);
 
-  // 已存在则直接返回
-  if (fs.existsSync(target)) return `/covers/${filename}`;
+  // 已存在则直接返回（除非强制重下）
+  if (!force && fs.existsSync(target)) return `/covers/${filename}`;
 
   try {
     // 下载时必须携带数据源 Referer（豆瓣封面防盗链；Amazon 图片不带亦可，带上更稳）

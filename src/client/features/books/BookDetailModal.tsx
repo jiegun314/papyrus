@@ -90,7 +90,13 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
 
   /* ---------- 封面：缺图 / 加载失败 → 可点击重新下载 ---------- */
   const hasCoverSource = Boolean(
-    book && (book.coverUrl || book.doubanId || book.isbn13 || book.isbn10)
+    book &&
+      (book.coverUrl ||
+        book.amazonAsin ||
+        book.openLibraryKey ||
+        book.doubanId ||
+        book.isbn13 ||
+        book.isbn10)
   );
   const armCoverRetry = useCallback(() => {
     if (hasCoverSource) setRetryArmed(true);
@@ -409,6 +415,16 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
             <button type="button" className="btn" onClick={() => setEditOpen(true)}>
               ✏️ 编辑信息
             </button>
+            {hasCoverSource ? (
+              <button
+                type="button"
+                className="btn"
+                onClick={onCoverRetry}
+                disabled={retrying}
+              >
+                {retrying ? '下载中…' : '🔄 重新下载封面'}
+              </button>
+            ) : null}
             <button type="button" className="btn btn-danger" onClick={() => setDeleteOpen(true)}>
               🗑 删除书籍
             </button>
