@@ -211,8 +211,8 @@ export function createBook(
 }
 
 
-/** 更新书籍 */
-export function updateBook(id: number, input: BookInput): Book | null {
+/** 更新书籍（允许只传入部分字段，只更新出现的字段） */
+export function updateBook(id: number, input: Partial<BookInput>): Book | null {
   const db = getDb();
   const fields: string[] = [];
   const params: Record<string, unknown> = { id };

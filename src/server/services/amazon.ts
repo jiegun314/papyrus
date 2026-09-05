@@ -278,19 +278,25 @@ function mapJsonLd(ld: any, asin: string, url: string): Record<string, unknown> 
 function parseDetailDom($: cheerio.CheerioAPI, asin: string, url: string): Record<string, unknown> {
   const title = $('#productTitle').first().text().trim();
 
-  // 作者
+  // 作者：从「by … (Author)」之间截取作者名，剔除版本内容与装帧（如「Simplified Chinese Edition」「Format: Hardcover」）
   const byline = $('#bylineInfo').first().text().trim();
   let authors: string[] = [];
   if (byline) {
-    const clean = cleanText(byline)
-      .replace(/\s*\(.*?\)\s*/g, ' ') // 去掉「(Author) / (Epilogue) / (Foreword)」
-      .replace(/&\s*\d+\s+more.*$/i, '') // 去掉「& N more Format: …」尾部折叠
-      .replace(/\s*\|.*$/g, '')
-      .replace(/^by\s+/i, '');
-    authors = clean
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const raw = cleanText(byline);
+    // 优先匹配「by … (角色)」；缺失角色括号时在 Format / | / & N more / 结尾处截断
+    const m =
+      raw.match(/by\s+(.+?)\s*\([^)]*\)/i) ||
+      raw.match(/by\s+(.+?)(?:&?\s*\d+\s+more|$)/i);
+    if (m?.[1]) {
+      const clean = m[1]
+        .replace(/\s*\([^)]*\)\s*/g, ' ')
+        .replace(/&?\s*\d+\s+more.*$/i, '')
+        .replace(/\s*\|.*$/g, '')
+        .replace(/\s*Format:.*$/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (clean) authors = clean.split(',').map((s) => s.trim()).filter(Boolean);
+    }
   }
 
   // 封面

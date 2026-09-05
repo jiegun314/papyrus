@@ -35,6 +35,11 @@ export function retryCover(id: number): Promise<Book> {
   return request<Book>(`/api/books/${id}/cover`, { method: 'POST' });
 }
 
+/** 从原数据源重新抓取并刷新除封面图片外的书籍信息（保留本地封面/电子书/个人数据） */
+export function refreshBook(id: number): Promise<Book> {
+  return request<Book>(`/api/books/${id}/refresh`, { method: 'POST' });
+}
+
 /** 新建书籍 */
 export function createBook(input: BookInput): Promise<Book> {
   return request<Book>('/api/books', { method: 'POST', body: JSON.stringify(input) });

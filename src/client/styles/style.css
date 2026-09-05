@@ -914,6 +914,11 @@ button.stat-card.clickable { cursor: pointer; }
 @media (max-width: 720px) {
   .header-inner { flex-wrap: wrap; gap: 10px; }
   .nav-tabs { order: 3; flex-basis: 100%; justify-content: space-between; }
+  /* 窄屏下 nav-tabs 换行到底部整行，首行只剩 logo 与按钮；用 margin-left:auto 让「添加书籍」按钮始终靠右 */
+  .header-actions { margin-left: auto; }
+  /* 窄屏下弹窗内四个来源标签（从豆瓣 / Amazon / Open Library / 手动）总宽超出容器，允许换行成多行，避免文字溢出屏幕 */
+  .tabs { flex-wrap: wrap; }
+  .tabs .tab { flex: 1 1 auto; }
   .book-detail { grid-template-columns: 1fr; }
   .book-detail .detail-cover { max-width: 200px; }
   .form-grid { grid-template-columns: 1fr; }

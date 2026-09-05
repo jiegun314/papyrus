@@ -9,6 +9,7 @@ import {
   deleteReview,
   ebookDownloadUrl,
   getBook,
+  refreshBook as refreshBookInfo,
   retryCover,
   setCategory,
   setTags,
@@ -45,6 +46,7 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
   const [catBusy, setCatBusy] = useState(false);
   const [retryArmed, setRetryArmed] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [statusBusy, setStatusBusy] = useState(false);
   const [tagOpen, setTagOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -121,6 +123,23 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
     } catch (e) {
       toast(errorMessage(e), 'error');
       setRetrying(false);
+    }
+  };
+
+  /** 从原数据源重新抓取并刷新除封面图片外的书籍信息（保留本地封面/电子书/个人数据） */
+  const onRefreshInfo = async () => {
+    if (!book || refreshing) return;
+    setRefreshing(true);
+    try {
+      const updated = await refreshBookInfo(book.id);
+      setBook(updated);
+      setLiveRating(0);
+      toast('书籍信息已刷新', 'success');
+      onMutated();
+    } catch (e) {
+      toast(errorMessage(e), 'error');
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -416,14 +435,24 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
               ✏️ 编辑信息
             </button>
             {hasCoverSource ? (
-              <button
-                type="button"
-                className="btn"
-                onClick={onCoverRetry}
-                disabled={retrying}
-              >
-                {retrying ? '下载中…' : '🔄 重新下载封面'}
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={onCoverRetry}
+                  disabled={retrying || refreshing}
+                >
+                  {retrying ? '下载中…' : '🔄 重新下载封面'}
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={onRefreshInfo}
+                  disabled={refreshing || retrying}
+                >
+                  {refreshing ? '刷新中…' : '↻ 刷新书籍信息'}
+                </button>
+              </>
             ) : null}
             <button type="button" className="btn btn-danger" onClick={() => setDeleteOpen(true)}>
               🗑 删除书籍

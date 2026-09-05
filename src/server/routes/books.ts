@@ -280,6 +280,130 @@ booksRouter.post('/:id/cover', async (req, res) => {
   }
 });
 
+/* ---------- 刷新书籍信息 ---------- */
+
+/**
+ * 依据书籍已有来源重新抓取详情（豆瓣 / Amazon / Open Library）。
+ * 未记录来源标识时按 ISBN 依次尝试三个数据源。
+ */
+async function refreshBookDetail(book: Book): Promise<Record<string, unknown>> {
+  if (book.doubanId) return await fetchBookDetail(book.doubanId);
+  if (book.amazonAsin) return await fetchAmazonDetail(book.amazonAsin);
+  if (book.openLibraryKey) return await fetchOpenLibraryDetail(book.openLibraryKey);
+
+  const isbn = book.isbn10 ?? book.isbn13 ?? '';
+  if (isbn) {
+    const attempts: Array<() => Promise<Record<string, unknown>>> = [
+      () => fetchBookByIsbn(isbn),
+      () => fetchAmazonByIsbn(isbn),
+      () => fetchOpenLibraryByIsbn(isbn),
+    ];
+    let lastErr: unknown;
+    for (const fn of attempts) {
+      try {
+        return await fn();
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error('按 ISBN 从各数据源查询均失败');
+  }
+  throw new Error('这本书没有可用的数据来源（豆瓣 / Amazon / Open Library / ISBN）');
+}
+
+/** 取详情字段中的字符串（去首尾空白；空串视为无值） */
+function detailStr(d: Record<string, unknown>, key: string): string | undefined {
+  const v = d[key];
+  return typeof v === 'string' && v.trim() ? v.trim() : undefined;
+}
+
+/** 取详情字段中的数字（仅接受有限数字） */
+function detailNum(d: Record<string, unknown>, key: string): number | undefined {
+  const v = d[key];
+  return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+}
+
+/**
+ * 将数据源详情映射为「刷新书籍信息」的更新载荷：只把来源已提供（非空）的字段写入，
+ * 避免把记录里已有的本地数据覆盖成空；同时刻意不包含：
+ *  - 封面本地路径 coverPath（封面图片保持不变，仅刷新封面原始地址 coverUrl）
+ *  - 电子书文件（ebookPath / ebookFilename / ebookSize）
+ *  - 个人数据（categoryId / readingStatus / notes / bookType）
+ *  - 标签、书评（由各自接口单独管理）
+ */
+function detailToBookInput(d: Record<string, unknown>): Partial<BookInput> {
+  const input: Partial<BookInput> = {};
+  const setStr = (key: string, out: keyof BookInput) => {
+    const v = detailStr(d, key);
+    if (v) (input as Record<string, unknown>)[out] = v;
+  };
+
+  setStr('title', 'title');
+  setStr('subtitle', 'subtitle');
+  setStr('originalTitle', 'originalTitle');
+  setStr('publisher', 'publisher');
+  setStr('pubdate', 'pubdate');
+  setStr('price', 'price');
+  setStr('binding', 'binding');
+  setStr('series', 'series');
+  setStr('summary', 'summary');
+  setStr('authorIntro', 'authorIntro');
+  setStr('catalog', 'catalog');
+  setStr('isbn13', 'isbn13');
+  setStr('isbn10', 'isbn10');
+  setStr('coverUrl', 'coverUrl');
+
+  if (Array.isArray(d.authors) && (d.authors as unknown[]).length > 0) {
+    const authors = (d.authors as string[]).map((a) => String(a).trim()).filter(Boolean);
+    if (authors.length) input.authors = authors;
+  }
+  const pages = detailNum(d, 'pages');
+  if (pages != null) input.pages = pages;
+  const ratingAverage = detailNum(d, 'ratingAverage');
+  if (ratingAverage != null) input.ratingAverage = ratingAverage;
+  const ratingCount = detailNum(d, 'ratingCount');
+  if (ratingCount != null) input.ratingCount = ratingCount;
+
+  // 来源标识与页面 URL（根据本次命中的来源补齐）
+  const doubanId = detailStr(d, 'doubanId');
+  if (doubanId) {
+    input.doubanId = doubanId;
+    input.doubanUrl = detailStr(d, 'doubanUrl') ?? `https://book.douban.com/subject/${doubanId}/`;
+  }
+  const asin = detailStr(d, 'asin');
+  if (asin) {
+    input.amazonAsin = asin;
+    if (detailStr(d, 'amazonUrl')) input.amazonUrl = detailStr(d, 'amazonUrl');
+  }
+  const olKey = detailStr(d, 'openLibraryKey');
+  if (olKey) {
+    input.openLibraryKey = olKey;
+    input.openLibraryUrl = detailStr(d, 'openLibraryUrl') ?? `https://openlibrary.org${olKey}`;
+  }
+
+  return input;
+}
+
+// POST /api/books/:id/refresh —— 从原数据源重新抓取并刷新除封面图片外的书籍信息
+booksRouter.post('/:id/refresh', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: '无效的书籍 id' });
+  const book = getBook(id);
+  if (!book) return res.status(404).json({ error: '书籍不存在' });
+
+  try {
+    const detail = await refreshBookDetail(book);
+    const input = detailToBookInput(detail);
+    if (Object.keys(input).length === 0) {
+      return res.status(502).json({ error: '未能从来源解析到任何可刷新的字段' });
+    }
+    const updated = updateBook(id, input);
+    res.json(updated);
+  } catch (e: any) {
+    res.status(502).json({ error: e.message || '刷新失败' });
+  }
+});
+
 /* ---------- 书评 ---------- */
 
 // POST /api/books/:id/reviews  body: { rating?, content }

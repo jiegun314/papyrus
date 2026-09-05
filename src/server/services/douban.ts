@@ -145,10 +145,21 @@ export class DoubanParser {
     return Number.isFinite(n) ? n : null;
   }
 
-  /** 内容简介（第一个 .intro 块） */
+  /** 内容简介（优先读“展开全部”后的完整版，避免取到被截断的预览） */
   get summary(): string | null {
-    const intro = this.$('#link-report .intro').first();
-    const text = intro.find('p').map((_, el) => this.$(el).text().trim()).get().join('\n');
+    // 豆瓣在内容较长时，会把简介拆成两块：
+    //   span.short —— 默认展示的截断预览（末尾带“展开全部”链接）
+    //   span.all   —— 点击“展开全部”后才展示的完整简介（带 hidden）
+    // 这里优先读取 .all 完整内容；没有 .all 时回退到首个 .intro。
+    const full = this.$('#link-report .all .intro').first();
+    const intro = full.length ? full : this.$('#link-report .intro').first();
+    const text = intro
+      .find('p')
+      .map((_, el) => this.$(el).text().trim())
+      .get()
+      // 过滤掉仅含“展开全部 / 收起 / 更多”等切换链接的段落，避免混入截断痕迹
+      .filter((t) => t && !/^[（(]?(收起|展开全部|更多)[）)]?$/.test(t.replace(/\.{2,}/g, '')))
+      .join('\n');
     return text || intro.text().trim() || null;
   }
 
