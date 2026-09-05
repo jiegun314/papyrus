@@ -2,7 +2,7 @@
  * features/douban/AddBookModal.tsx —— 添加书籍弹窗。
  * Tab ①：从豆瓣导入；Tab ②：Amazon 导入（英文书）；Tab ③：Open Library 导入；Tab ④：手动录入。
  */
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import type { AmazonSearchResult, BookType, Category, DoubanSearchResult, OpenLibrarySearchResult } from '../../../shared/types';
 import { createBook } from '../../api/books';
 import { doubanPreview, doubanSave, doubanSearch } from '../../api/douban';
@@ -11,7 +11,6 @@ import { openLibraryPreview, openLibrarySave, openLibrarySearch } from '../../ap
 import { errorMessage } from '../../api/http';
 import { listCategories } from '../../api/meta';
 import { EmptyState } from '../../components/EmptyState';
-import { IsbnScanner } from '../../components/IsbnScanner';
 import { Loading } from '../../components/Loading';
 import { Modal } from '../../components/Modal';
 import { useToast } from '../../components/Toast';
@@ -27,6 +26,36 @@ import {
 type TabKey = 'douban' | 'amazon' | 'openlibrary' | 'manual';
 /** 添加流程：type = 先选择载体类型；form = 进入具体录入方式 */
 type AddStep = 'type' | 'form';
+
+/**
+ * 扫码弹窗按需加载：@zxing/browser + @zxing/library 体积较大，若在顶层静态 import，
+ * 会把这些代码塞进主包（>500 KB 触发构建警告）。这里故意改成 React.lazy——
+ * 仅在用户真正点击「扫码」时（open=true）才动态加载该 chunk，从而把主包控制在小体积，
+ * 也避免未用到扫码的用户首屏被拖慢。
+ */
+const LazyIsbnScanner = lazy(() =>
+  import('../../components/IsbnScanner').then((m) => ({ default: m.IsbnScanner })),
+);
+
+/**
+ * 薄封装：只有 open 时才会渲染 <LazyIsbnScanner>（触发懒加载并启动摄像头）；
+ * 关闭时直接卸载，IsbnScanner 内部的 cleanup 会停止解码并释放摄像头。
+ */
+function ScannerSlot({
+  open,
+  onClose,
+  onDetect,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onDetect: (isbn: string) => void;
+}) {
+  return open ? (
+    <Suspense fallback={null}>
+      <LazyIsbnScanner open onClose={onClose} onDetect={onDetect} />
+    </Suspense>
+  ) : null;
+}
 
 export function AddBookModal({
   open,
@@ -282,11 +311,7 @@ function DoubanPanel({ onSaved, bookType }: { onSaved: () => void; bookType: Boo
       </div>
 
       {preview ? <PreviewPanel detail={preview.detail} item={preview.item} /> : null}
-      <IsbnScanner
-        open={scanning}
-        onClose={() => setScanning(false)}
-        onDetect={handleScan}
-      />
+      <ScannerSlot open={scanning} onClose={() => setScanning(false)} onDetect={handleScan} />
     </div>
   );
 }
@@ -479,11 +504,7 @@ function AmazonPanel({ onSaved, bookType }: { onSaved: () => void; bookType: Boo
       </div>
 
       {preview ? <AmazonPreviewPanel detail={preview.detail} item={preview.item} /> : null}
-      <IsbnScanner
-        open={scanning}
-        onClose={() => setScanning(false)}
-        onDetect={handleScan}
-      />
+      <ScannerSlot open={scanning} onClose={() => setScanning(false)} onDetect={handleScan} />
     </div>
   );
 }
@@ -676,11 +697,7 @@ function OpenLibraryPanel({ onSaved, bookType }: { onSaved: () => void; bookType
       </div>
 
       {preview ? <OpenLibraryPreviewPanel detail={preview.detail} item={preview.item} /> : null}
-      <IsbnScanner
-        open={scanning}
-        onClose={() => setScanning(false)}
-        onDetect={handleScan}
-      />
+      <ScannerSlot open={scanning} onClose={() => setScanning(false)} onDetect={handleScan} />
     </div>
   );
 }
