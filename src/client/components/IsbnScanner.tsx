@@ -1,51 +1,25 @@
 /**
  * components/IsbnScanner.tsx —— 调用系统摄像头扫描并识别 ISBN 条形码的弹窗。
  *
- * 基于 @zxing/browser 的 BrowserMultiFormatReader，从手机/电脑后置摄像头视频流连续解码，
- * 限定 EAN-13 / EAN-8 / UPC-A 等图书条形码格式，并开启 TRY_HARDER 提升对模糊、倾斜、弱光条码的识别。
- * 解码成功后通过 onDetect(isbn) 回调把识别到的编码（自动转为不含连字符的纯数字）交回给调用方，
- * 然后停止扫描并释放摄像头。
+ * 自接管视频流与解码循环（不再把取流/播放交给 @zxing 的连续解码方法），以便：
+ *  1) 解决 Android 冷启动时「首个流出帧即黑」的问题：发现画面冻结或纯黑，就按
+ *     「取消后重扫」的方式换一条全新流，直到取到可用画面。
+ *  2) 兼容 iOS Safari：必须先给 video 设 playsinline / muted / autoplay，并在设置
+ *     srcObject 后立即 play()；否则 iOS 上预览始终黑屏，表现为「打不开摄像头」。
+ *  3) 任何路径都会在有限时间内结束「正在启动摄像头」，绝不永久卡在启动态。
  */
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser';
+import { BrowserMultiFormatReader } from '@zxing/browser';
 import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 
-/**
- * 从解码结果文本中推导出干净的条码字符串；不符合则返回 null。
- * 图书条码常见的几种长度都接受，交给后端的搜索接口去做最终 ISBN 校验：
- * - ISBN-13 / EAN-13：13 位数字（通常以 978 / 979 开头）
- * - UPC-A：12 位数字（部分书籍条码以 EAN-13 兼容方式编码）
- * - ISBN-10：10 位（末位校验位可为数字）
- */
+/** 从解码结果文本中推导出干净的条码字符串；不符合则返回 null。 */
 function deriveIsbn(text: string): string | null {
   const t = text.trim().replace(/[-\s]/g, '');
   if (/^\d{10}$/.test(t)) return t.toUpperCase();
   if (/^\d{12}$/.test(t)) return t;
   if (/^\d{13}$/.test(t)) return t;
   return null;
-}
-
-/**
- * 逐个构造越来越宽松的摄像头约束，兼容安卓/不同浏览器的差异：
- * 优先后置（environment）高清 → 后置默认 → 任意 → 前置兜底。
- */
-async function openCameraStream(md: MediaDevices): Promise<MediaStream> {
-  const attempts: MediaStreamConstraints[] = [
-    { audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
-    { audio: false, video: { facingMode: { ideal: 'environment' } } },
-    { audio: false, video: true },
-    { audio: false, video: { facingMode: { ideal: 'user' } } },
-  ];
-  let lastErr: unknown;
-  for (const c of attempts) {
-    try {
-      return await md.getUserMedia(c);
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr ?? new Error('NO_CAMERA');
 }
 
 /** 把浏览器给出的摄像头异常映射成更容易理解的中文提示。 */
@@ -63,6 +37,45 @@ function describeCameraError(err: unknown): string {
   return '摄像头启动失败，请重试。';
 }
 
+/** 逐个构造越来越宽松的摄像头约束，兼容安卓/iOS 不同浏览器的差异。 */
+async function openCameraStream(md: MediaDevices, signal?: AbortSignal): Promise<MediaStream> {
+  const attempts: Array<MediaStreamConstraints & { signal?: AbortSignal }> = [
+    { audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, signal },
+    { audio: false, video: { facingMode: { ideal: 'environment' } }, signal },
+    { audio: false, video: true, signal },
+    { audio: false, video: { facingMode: { ideal: 'user' } }, signal },
+  ];
+  let lastErr: unknown;
+  for (const c of attempts) {
+    try {
+      return await md.getUserMedia(c);
+    } catch (e) {
+      lastErr = e;
+      if (signal?.aborted) throw e;
+    }
+  }
+  throw lastErr ?? new Error('NO_CAMERA');
+}
+
+/** 连续解码帧的长边上限：过高会显著增加每帧 getImageData 的内存与耗时。 */
+const MAX_FRAME_EDGE = 1280;
+/** 连续解码的帧间隔（毫秒）。 */
+const SCAN_INTERVAL_MS = 150;
+/** getUserMedia 单次超时，即便浏览器不响应 AbortSignal 也会在此后强制结束。 */
+const CAMERA_TIMEOUT_MS = 8000;
+/** 等待视频元数据/尺寸就绪的超时。 */
+const SETUP_TIMEOUT_MS = 6000;
+/** 超过该时长没有新帧，视为「冻结」。 */
+const STALL_MS = 2000;
+/** 画面持续纯黑超过该时长，视为「黑屏」。 */
+const BLACK_MS = 2000;
+/** 平均亮度低于该值（0~255）判为黑。 */
+const BLACK_THRESHOLD = 16;
+/** 换流前等待硬件释放的时间（等于用户手动「取消后重扫」的间隔）。 */
+const RECOVER_GAP_MS = 600;
+/** 最多主动换流的次数。 */
+const MAX_RECOVERIES = 2;
+
 export function IsbnScanner({
   open,
   onClose,
@@ -70,13 +83,10 @@ export function IsbnScanner({
 }: {
   open: boolean;
   onClose: () => void;
-  /** 识别到合法 ISBN 后回调（已去掉连字符/空格）。 */
   onDetect: (isbn: string) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const controlsRef = useRef<IScannerControls | null>(null);
-  // 自己主动获取的麦克风/摄像头流，用于在异常路径下兜底释放摄像头。
-  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const detectedRef = useRef(false);
   const onDetectRef = useRef(onDetect);
   const onCloseRef = useRef(onClose);
@@ -88,10 +98,23 @@ export function IsbnScanner({
     onCloseRef.current = onClose;
   });
 
-  // 打开时启动摄像头并持续解码；关闭时释放摄像头。
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    // 收集所有定时器，卸载时统一清理。
+    const timeouts = new Set<number>();
+    const intervals = new Set<number>();
+    const addTimeout = (id: number) => (timeouts.add(id), id);
+    const addInterval = (id: number) => (intervals.add(id), id);
+    const sleep = (ms: number) => new Promise<void>((r) => addTimeout(window.setTimeout(r, ms)));
+
+    let decodeTimer = 0;
+    let watchTimer = 0;
+    let stopFrameWatch: () => void = () => {};
+    let lastFrameAt = 0;
+    let blackStartAt = 0;
+    let loopRecoveries = 0;
+
     setError(null);
     setStarting(true);
     detectedRef.current = false;
@@ -104,84 +127,296 @@ export function IsbnScanner({
       BarcodeFormat.UPC_A,
     ]);
     hints.set(DecodeHintType.TRY_HARDER, true);
-    // 更快的扫描频率 + 更高的目标分辨率，让识别更灵敏清晰。
-    const reader = new BrowserMultiFormatReader(hints, {
-      delayBetweenScanAttempts: 100,
-      delayBetweenScanSuccess: 200,
-      tryPlayVideoTimeout: 10000,
-    });
+    const reader = new BrowserMultiFormatReader(hints);
 
-    const run = async () => {
+    const canvas = document.createElement('canvas');
+    const canvasCtx = canvas.getContext('2d', { willReadFrequently: true });
+    const sampleCanvas = document.createElement('canvas');
+    sampleCanvas.width = 16;
+    sampleCanvas.height = 16;
+    const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+
+    // 释放摄像头：停掉帧跟踪、清掉解码/看门狗定时器、停止轨道并清空 srcObject。
+    const stopCamera = () => {
+      stopFrameWatch();
+      window.clearTimeout(decodeTimer);
+      window.clearInterval(watchTimer);
       try {
-        // 摄像头权限只在「安全上下文」（HTTPS 或 localhost）下可用。
-        // 安卓上若用 http://<局域网IP> 访问开发服务器，浏览器会直接禁用摄像头，这里给出明确提示。
-        if (!globalThis.isSecureContext) {
-          setError('当前页面不是安全上下文，浏览器已禁用摄像头。请改用 https:// 或 localhost 访问本站后重试。');
-          setStarting(false);
+        streamRef.current?.getTracks().forEach((t) => t.stop());
+      } catch {
+        /* 忽略 */
+      }
+      streamRef.current = null;
+      const v = videoRef.current;
+      if (v) {
+        try {
+          v.srcObject = null;
+        } catch {
+          /* 忽略 */
+        }
+      }
+    };
+
+    // 事件驱动地等待「视频元数据/真实尺寸就绪」，有超时，绝不无限等待。
+    const waitForReady = (video: HTMLVideoElement, timeoutMs: number) =>
+      new Promise<void>((resolve, reject) => {
+        let settled = false;
+        let tid = 0;
+        const onReady = () => {
+          if (video.videoWidth > 0 && video.videoHeight > 0) finish();
+        };
+        const finish = (err?: Error) => {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(tid);
+          video.removeEventListener('loadedmetadata', onReady);
+          video.removeEventListener('resize', onReady);
+          if (err) reject(err);
+          else resolve();
+        };
+        if (video.readyState >= 1 && video.videoWidth > 0 && video.videoHeight > 0) {
+          finish();
           return;
         }
-        const md = navigator.mediaDevices;
-        if (!md || typeof md.getUserMedia !== 'function') {
-          setError('当前浏览器不支持调用摄像头，请使用新版 Chrome / Edge / Safari。');
-          setStarting(false);
-          return;
-        }
+        tid = addTimeout(window.setTimeout(() => finish(new Error('VIDEO_FRAME_TIMEOUT')), timeoutMs));
+        video.addEventListener('loadedmetadata', onReady);
+        video.addEventListener('resize', onReady);
+      });
 
-        const stream = await openCameraStream(md);
-        mediaStreamRef.current = stream;
+    // 用 requestVideoFrameCallback 持续跟踪「视频是否在渲染新帧」。
+    const trackFrames = (video: HTMLVideoElement) => {
+      stopFrameWatch();
+      if (typeof video.requestVideoFrameCallback !== 'function') return;
+      let active = true;
+      const onFrame = () => {
+        if (!active) return;
+        lastFrameAt = Date.now();
+        video.requestVideoFrameCallback(onFrame);
+      };
+      lastFrameAt = Date.now();
+      video.requestVideoFrameCallback(onFrame);
+      stopFrameWatch = () => {
+        active = false;
+      };
+    };
 
-        const controls = await reader.decodeFromStream(
-          stream,
-          videoRef.current ?? undefined,
-          (result, _err, ctrl) => {
-            if (!result) return; // 每帧未识别到条形码属于正常情况，忽略
-            const isbn = deriveIsbn(result.getText());
-            if (!isbn) return;
-            if (detectedRef.current) return;
-            detectedRef.current = true;
-            ctrl.stop();
-            onDetectRef.current(isbn);
-            onCloseRef.current();
-          },
+    // 把流接到 video 并开始播放。iOS Safari 顺序很重要：先设 playsinline/muted/autoplay，
+    // 设置 srcObject 后立即 play()，否则元数据不至、预览黑屏。
+    const attachStream = async (video: HTMLVideoElement, stream: MediaStream) => {
+      video.playsInline = true;
+      video.autoplay = true;
+      video.muted = true;
+      video.setAttribute('playsinline', '');
+      video.setAttribute('autoplay', '');
+      video.srcObject = stream;
+      const playPromise = video.play().catch(() => undefined);
+      await waitForReady(video, SETUP_TIMEOUT_MS);
+      await Promise.race([
+        playPromise,
+        new Promise<void>((r) => addTimeout(window.setTimeout(r, 1000))),
+      ]);
+      if (cancelled) return;
+      blackStartAt = 0;
+      trackFrames(video);
+    };
+
+    // 单次取流，带双层超时：即便浏览器不响应 AbortSignal，也保证在 deadline 后结束，
+    // 迟到的流自行释放，避免占用摄像头导致后续重试报 NotReadableError。
+    const getStream = async (md: MediaDevices): Promise<MediaStream> => {
+      const ac = new AbortController();
+      let settled = false;
+      const release = (s: MediaStream) => s.getTracks().forEach((t) => t.stop());
+      const timeout = addTimeout(window.setTimeout(() => ac.abort(), CAMERA_TIMEOUT_MS));
+      const p = openCameraStream(md, ac.signal).then(
+        (stream) => {
+          window.clearTimeout(timeout);
+          if (settled) {
+            release(stream);
+            return Promise.reject(new Error('CANCELLED'));
+          }
+          settled = true;
+          return stream;
+        },
+        (err) => {
+          window.clearTimeout(timeout);
+          settled = true;
+          throw err;
+        },
+      );
+      const fallback = new Promise<MediaStream>((_, reject) => {
+        addTimeout(
+          window.setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            reject(new Error('CAMERA_OPEN_TIMEOUT'));
+          }, CAMERA_TIMEOUT_MS + 1000),
         );
-        controlsRef.current = controls;
-        setStarting(false);
-        if (cancelled) controls.stop();
+      });
+      return Promise.race([p, fallback]);
+    };
+
+    // 打开一条「全新」的流（先释放旧流），等价于用户手动「取消后再扫码」。
+    const openOnce = async () => {
+      stopCamera();
+      await sleep(0);
+      if (cancelled) throw new Error('CANCELLED');
+      const md = navigator.mediaDevices;
+      const video = videoRef.current;
+      if (!md || typeof md.getUserMedia !== 'function') throw new Error('NO_MEDIA_DEVICE');
+      if (!video) throw new Error('VIDEO_ELEMENT_MISSING');
+      const stream = await getStream(md);
+      streamRef.current = stream;
+      await attachStream(video, stream);
+    };
+
+    // 启动时重试：Android 冷启动的首个流常常黑屏/冻结/给不出尺寸，换全新流再试。
+    const openWithRetry = async () => {
+      let attempt = 1;
+      let lastErr: unknown;
+      while (attempt <= MAX_RECOVERIES) {
+        if (cancelled) throw new Error('CANCELLED');
+        try {
+          await openOnce();
+          return;
+        } catch (e) {
+          lastErr = e;
+          if (cancelled) throw new Error('CANCELLED');
+          attempt += 1;
+          if (attempt <= MAX_RECOVERIES) await sleep(RECOVER_GAP_MS);
+        }
+      }
+      throw lastErr;
+    };
+
+    const scheduleDecode = () => {
+      decodeTimer = addTimeout(window.setTimeout(decodeFrame, SCAN_INTERVAL_MS));
+    };
+
+    // 连续解码循环：任何解码异常都只跳到下一帧，绝不停掉摄像头。
+    const decodeFrame = () => {
+      if (cancelled) return;
+      const video = videoRef.current;
+      if (!video || !canvasCtx) {
+        scheduleDecode();
+        return;
+      }
+      const w = video.videoWidth;
+      const h = video.videoHeight;
+      if (w < 1 || h < 1) {
+        scheduleDecode();
+        return;
+      }
+      const scale = Math.min(1, MAX_FRAME_EDGE / Math.max(w, h));
+      const dw = Math.max(1, Math.round(w * scale));
+      const dh = Math.max(1, Math.round(h * scale));
+      if (canvas.width !== dw) canvas.width = dw;
+      if (canvas.height !== dh) canvas.height = dh;
+      try {
+        canvasCtx.drawImage(video, 0, 0, dw, dh);
+        const result = reader.decodeFromCanvas(canvas);
+        const isbn = result ? deriveIsbn(result.getText()) : null;
+        if (isbn && !detectedRef.current) {
+          detectedRef.current = true;
+          onDetectRef.current(isbn);
+          stopCamera();
+          onCloseRef.current();
+          return;
+        }
+      } catch {
+        /* 未识别到条码 / 校验错误 / 该帧异常，均属正常，继续下一帧 */
+      }
+      scheduleDecode();
+    };
+
+    const recover = async () => {
+      if (cancelled || loopRecoveries >= MAX_RECOVERIES) return;
+      loopRecoveries += 1;
+      await sleep(RECOVER_GAP_MS);
+      if (cancelled) return;
+      try {
+        await openOnce();
       } catch (e) {
         if (cancelled) return;
         setError(describeCameraError(e));
         setStarting(false);
+        return;
+      }
+      startWatch();
+      scheduleDecode();
+    };
+
+    const startWatch = () => {
+      window.clearInterval(watchTimer);
+      watchTimer = addInterval(window.setInterval(watchdog, 250));
+    };
+
+    // 看门狗：检测「冻结」（长时间无新帧）或「纯黑」（整体亮度极低）并触发换流。
+    const watchdog = () => {
+      if (cancelled) return;
+      const video = videoRef.current;
+      if (!video) return;
+      const now = Date.now();
+      let darkened = false;
+      if (sampleCtx) {
+        try {
+          sampleCtx.drawImage(video, 0, 0, sampleCanvas.width, sampleCanvas.height);
+          const d = sampleCtx.getImageData(0, 0, sampleCanvas.width, sampleCanvas.height).data;
+          let sum = 0;
+          for (let i = 0; i < d.length; i += 4) sum += d[i] + d[i + 1] + d[i + 2];
+          darkened = sum / (d.length / 4) / 3 < BLACK_THRESHOLD;
+        } catch {
+          darkened = false;
+        }
+      }
+      if (darkened) {
+        if (blackStartAt === 0) blackStartAt = now;
+      } else {
+        blackStartAt = 0;
+      }
+      const stalledFrame = typeof video.requestVideoFrameCallback === 'function' && now - lastFrameAt > STALL_MS;
+      const blacked = blackStartAt !== 0 && now - blackStartAt > BLACK_MS;
+      if (loopRecoveries < MAX_RECOVERIES && (stalledFrame || blacked)) {
+        void recover();
       }
     };
 
-    void run();
+    const start = async () => {
+      if (!globalThis.isSecureContext) {
+        setError('当前页面不是安全上下文，浏览器已禁用摄像头。请改用 https:// 或 localhost 访问本站后重试。');
+        setStarting(false);
+        return;
+      }
+      const md = navigator.mediaDevices;
+      if (!md || typeof md.getUserMedia !== 'function') {
+        setError('当前浏览器不支持调用摄像头，请使用新版 Chrome / Edge / Safari。');
+        setStarting(false);
+        return;
+      }
+      try {
+        await openWithRetry();
+      } catch (e) {
+        if (cancelled) return;
+        setError(describeCameraError(e));
+        setStarting(false);
+        return;
+      }
+      if (cancelled) {
+        stopCamera();
+        return;
+      }
+      startWatch();
+      scheduleDecode();
+      setStarting(false);
+    };
+
+    void start();
 
     return () => {
       cancelled = true;
-      try {
-        controlsRef.current?.stop();
-      } catch {
-        /* 释放摄像头时失败可忽略 */
-      }
-      controlsRef.current = null;
-      // 兜底：显式停止摄像头轨道，确保安卓上摄像头指示灯熄灭。
-      try {
-        mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
-      } catch {
-        /* 忽略 */
-      }
-      mediaStreamRef.current = null;
+      timeouts.forEach((t) => window.clearTimeout(t));
+      intervals.forEach((i) => window.clearInterval(i));
+      stopCamera();
     };
-  }, [open]);
-
-  // Esc 关闭
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCloseRef.current();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
   }, [open]);
 
   if (!open) return null;
@@ -217,3 +452,4 @@ export function IsbnScanner({
     document.body,
   );
 }
+
