@@ -24,7 +24,7 @@ export const booksRouter = Router();
 /* ---------- 列表 ---------- */
 
 // GET /api/books?keyword=&categoryId=&tagId=&readingStatus=&hasReview=&hasTag=&hasCategory=&limit=&offset=
-booksRouter.get('/', (req, res) => {
+booksRouter.get('/', async (req, res) => {
   const { keyword, categoryId, tagId, readingStatus, limit, offset } = req.query;
   const bool = (v: unknown): boolean | undefined =>
     v === 'true' || v === '1' ? true : v === 'false' || v === '0' ? false : undefined;
@@ -34,41 +34,49 @@ booksRouter.get('/', (req, res) => {
   const { bookType } = req.query;
   const parsedBookType =
     bookType === 'physical' || bookType === 'ebook' ? bookType : undefined;
-  const books = listBooks({
-    keyword: typeof keyword === 'string' ? keyword : undefined,
-    categoryId: categoryId ? Number(categoryId) : undefined,
-    tagId: tagId ? Number(tagId) : undefined,
-    readingStatus: isReadingStatus(readingStatus) ? readingStatus : undefined,
-    bookType: parsedBookType,
-    hasReview: bool(req.query.hasReview),
-    hasTag: bool(req.query.hasTag),
-    hasCategory: bool(req.query.hasCategory),
-    limit: limit ? Number(limit) : undefined,
-    offset: offset ? Number(offset) : undefined,
-  });
-  res.json(books);
+  try {
+    const books = await listBooks({
+      keyword: typeof keyword === 'string' ? keyword : undefined,
+      categoryId: categoryId ? Number(categoryId) : undefined,
+      tagId: tagId ? Number(tagId) : undefined,
+      readingStatus: isReadingStatus(readingStatus) ? readingStatus : undefined,
+      bookType: parsedBookType,
+      hasReview: bool(req.query.hasReview),
+      hasTag: bool(req.query.hasTag),
+      hasCategory: bool(req.query.hasCategory),
+      limit: limit ? Number(limit) : undefined,
+      offset: offset ? Number(offset) : undefined,
+    });
+    res.json(books);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || '查询图书列表失败' });
+  }
 });
 
 /* ---------- 详情 ---------- */
 
 // GET /api/books/:id
-booksRouter.get('/:id', (req, res) => {
+booksRouter.get('/:id', async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) return res.status(400).json({ error: '无效的书籍 id' });
-  const book = getBook(id);
-  if (!book) return res.status(404).json({ error: '书籍不存在' });
-  res.json(book);
+  try {
+    const book = await getBook(id);
+    if (!book) return res.status(404).json({ error: '书籍不存在' });
+    res.json(book);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || '查询书籍失败' });
+  }
 });
 
 /* ---------- 新建 ---------- */
 
 // POST /api/books  手动录入书籍
-booksRouter.post('/', (req, res) => {
+booksRouter.post('/', async (req, res) => {
   const input = req.body as BookInput;
   if (!input?.title?.trim()) return res.status(400).json({ error: '书名不能为空' });
   try {
-    const id = createBook({ ...input, authors: input.authors ?? [] });
-    res.status(201).json(getBook(id));
+    const id = await createBook({ ...input, authors: input.authors ?? [] });
+    res.status(201).json(await getBook(id));
   } catch (e: any) {
     res.status(500).json({ error: e.message || '保存失败' });
   }
@@ -117,25 +125,29 @@ booksRouter.post(
 /* ---------- 电子书下载 ---------- */
 
 // GET /api/books/:id/ebook/download —— 以下载方式返回电子书文件（Content-Disposition: attachment）。
-booksRouter.get('/:id/ebook/download', (req, res) => {
+booksRouter.get('/:id/ebook/download', async (req, res) => {
   const id = Number(req.params.id);
-  const book = getBook(id);
-  if (!book) return res.status(404).json({ error: '书籍不存在' });
-  if (!book.ebookPath) return res.status(404).json({ error: '该书未上传电子书文件' });
-  const filename = path.basename(book.ebookPath);
-  const target = path.join(EBOOKS_DIR, filename);
-  if (!fs.existsSync(target)) return res.status(404).json({ error: '电子书文件不存在' });
-  const downloadName = buildEbookDownloadName(book, filename);
-  res.download(target, downloadName);
+  try {
+    const book = await getBook(id);
+    if (!book) return res.status(404).json({ error: '书籍不存在' });
+    if (!book.ebookPath) return res.status(404).json({ error: '该书未上传电子书文件' });
+    const filename = path.basename(book.ebookPath);
+    const target = path.join(EBOOKS_DIR, filename);
+    if (!fs.existsSync(target)) return res.status(404).json({ error: '电子书文件不存在' });
+    const downloadName = buildEbookDownloadName(book, filename);
+    res.download(target, downloadName);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || '下载电子书失败' });
+  }
 });
 
 /* ---------- 修改 / 删除 ---------- */
 
 // PUT /api/books/:id
-booksRouter.put('/:id', (req, res) => {
+booksRouter.put('/:id', async (req, res) => {
   const id = Number(req.params.id);
   try {
-    const book = updateBook(id, req.body as BookInput);
+    const book = await updateBook(id, req.body as BookInput);
     if (!book) return res.status(404).json({ error: '书籍不存在' });
     res.json(book);
   } catch (e: any) {
@@ -144,29 +156,41 @@ booksRouter.put('/:id', (req, res) => {
 });
 
 // DELETE /api/books/:id
-booksRouter.delete('/:id', (req, res) => {
+booksRouter.delete('/:id', async (req, res) => {
   const id = Number(req.params.id);
-  if (!deleteBook(id)) return res.status(404).json({ error: '书籍不存在' });
-  res.json({ ok: true });
+  try {
+    if (!(await deleteBook(id))) return res.status(404).json({ error: '书籍不存在' });
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || '删除失败' });
+  }
 });
 
 /* ---------- 标签 / 归类 ---------- */
 
 // POST /api/books/:id/tags  body: { tags: string[] }
-booksRouter.post('/:id/tags', (req, res) => {
+booksRouter.post('/:id/tags', async (req, res) => {
   const id = Number(req.params.id);
   const tags = Array.isArray(req.body?.tags) ? req.body.tags.map(String) : [];
-  setBookTags(id, tags);
-  res.json(getBook(id));
+  try {
+    await setBookTags(id, tags);
+    res.json(await getBook(id));
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || '设置标签失败' });
+  }
 });
 
 // POST /api/books/:id/category  body: { categoryId: number | null }
-booksRouter.post('/:id/category', (req, res) => {
+booksRouter.post('/:id/category', async (req, res) => {
   const id = Number(req.params.id);
   const cat = req.body?.categoryId == null ? null : Number(req.body.categoryId);
-  const book = setBookCategory(id, cat);
-  if (!book) return res.status(404).json({ error: '书籍不存在' });
-  res.json(book);
+  try {
+    const book = await setBookCategory(id, cat);
+    if (!book) return res.status(404).json({ error: '书籍不存在' });
+    res.json(book);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || '设置分类失败' });
+  }
 });
 
 /* ---------- 封面 ---------- */
@@ -259,7 +283,7 @@ async function resolveCoverSource(
 // POST /api/books/:id/cover —— 重新下载封面（豆瓣 / Amazon / Open Library 均可手动重试）
 booksRouter.post('/:id/cover', async (req, res) => {
   const id = Number(req.params.id);
-  const book = getBook(id);
+  const book = await getBook(id);
   if (!book) return res.status(404).json({ error: '书籍不存在' });
 
   const source = await resolveCoverSource(book);
@@ -273,8 +297,8 @@ booksRouter.post('/:id/cover', async (req, res) => {
     if (!localPath) {
       return res.status(502).json({ error: '封面下载失败，请稍后再试' });
     }
-    setBookCoverPath(id, localPath);
-    res.json(getBook(id));
+    await setBookCoverPath(id, localPath);
+    res.json(await getBook(id));
   } catch (e: any) {
     res.status(500).json({ error: e.message || '封面下载失败' });
   }
@@ -388,7 +412,7 @@ function detailToBookInput(d: Record<string, unknown>): Partial<BookInput> {
 booksRouter.post('/:id/refresh', async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) return res.status(400).json({ error: '无效的书籍 id' });
-  const book = getBook(id);
+  const book = await getBook(id);
   if (!book) return res.status(404).json({ error: '书籍不存在' });
 
   try {
@@ -397,7 +421,7 @@ booksRouter.post('/:id/refresh', async (req, res) => {
     if (Object.keys(input).length === 0) {
       return res.status(502).json({ error: '未能从来源解析到任何可刷新的字段' });
     }
-    const updated = updateBook(id, input);
+    const updated = await updateBook(id, input);
     res.json(updated);
   } catch (e: any) {
     res.status(502).json({ error: e.message || '刷新失败' });
@@ -407,35 +431,39 @@ booksRouter.post('/:id/refresh', async (req, res) => {
 /* ---------- 书评 ---------- */
 
 // POST /api/books/:id/reviews  body: { rating?, content }
-booksRouter.post('/:id/reviews', (req, res) => {
+booksRouter.post('/:id/reviews', async (req, res) => {
   const id = Number(req.params.id);
   const rating = req.body?.rating == null || req.body.rating === '' ? null : Number(req.body.rating);
   const content = req.body?.content?.trim() ?? '';
   if (content === '' && rating == null)
     return res.status(400).json({ error: '评分和内容至少填一项' });
   try {
-    res.status(201).json(addReview(id, rating, content));
+    res.status(201).json(await addReview(id, rating, content));
   } catch (e: any) {
     res.status(500).json({ error: e.message || '保存书评失败' });
   }
 });
 
 // PUT /api/reviews/:rid
-booksRouter.put('/reviews/:rid', (req, res) => {
+booksRouter.put('/reviews/:rid', async (req, res) => {
   const rid = Number(req.params.rid);
   const rating = req.body?.rating == null || req.body.rating === '' ? null : Number(req.body.rating);
   const content = req.body?.content?.trim() ?? '';
   try {
-    res.json(updateReview(rid, rating, content));
+    res.json(await updateReview(rid, rating, content));
   } catch (e: any) {
     res.status(500).json({ error: e.message || '更新书评失败' });
   }
 });
 
 // DELETE /api/reviews/:rid
-booksRouter.delete('/reviews/:rid', (req, res) => {
+booksRouter.delete('/reviews/:rid', async (req, res) => {
   const rid = Number(req.params.rid);
-  const bookId = deleteReview(rid);
-  if (!bookId) return res.status(404).json({ error: '书评不存在' });
-  res.json(getBook(bookId));
+  try {
+    const bookId = await deleteReview(rid);
+    if (!bookId) return res.status(404).json({ error: '书评不存在' });
+    res.json(await getBook(bookId));
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || '删除书评失败' });
+  }
 });

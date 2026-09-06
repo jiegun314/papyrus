@@ -3,45 +3,51 @@
  * ------------------------------------------------------------------
  * 书籍业务服务：所有针对 books / tags / reviews 的数据库操作
  * 都集中在这里，路由层只负责解析参数和返回 HTTP 响应。
+ *
+ * 数据访问统一使用 Drizzle ORM 构建类型安全的查询（不再拼接 SQL 字符串），
+ * 且所有函数均为 async（Promise），为将来切换到 Cloudflare D1 做好准备——
+ * D1 的驱动粒度与下方 await db.select()/insert()/update()/delete() 一致，
+ * 仅需把 getDb() 的驱动实例换成 drizzle-orm/d1 即可。
  */
-import type { Book, BookInput, BookQuery, Stats } from '../../shared/types.js';
+import type { Book, BookInput, BookQuery, ReadingStatus, Stats } from '../../shared/types.js';
 import { getDb, rowToBook, stringifyAuthors } from '../db/index.js';
 import { removeCover } from './cover.js';
 import { removeEbookFile } from './ebook.js';
+import { eq, and, or, like, desc, count, sql, inArray, isNotNull, ne, type SQL } from 'drizzle-orm';
+import { books, categories, tags, bookTags, reviews } from '../db/schema.js';
 
 /* ------------------------------------------------------------------ */
 /* 私有工具：查询书籍时的关联数据                                     */
 /* ------------------------------------------------------------------ */
 
-function loadCategoriesMap(): Map<number, { id: number; name: string; color: string; createdAt: string }> {
+async function loadCategoriesMap(): Promise<Map<number, { id: number; name: string; color: string; createdAt: string }>> {
   const db = getDb();
-  const rows = db.prepare('SELECT id, name, color, created_at FROM categories').all() as any[];
-  return new Map(rows.map((r) => [r.id, { id: r.id, name: r.name, color: r.color, createdAt: r.created_at }]));
+  const rows = await db
+    .select({ id: categories.id, name: categories.name, color: categories.color, createdAt: categories.createdAt })
+    .from(categories);
+  return new Map(rows.map((r) => [r.id, { id: r.id, name: r.name, color: r.color, createdAt: r.createdAt }]));
 }
 
-function attachRelations(books: any[]): Book[] {
-  if (books.length === 0) return [];
+async function attachRelations(booksRows: any[]): Promise<Book[]> {
+  if (booksRows.length === 0) return [];
   const db = getDb();
-  const ids = books.map((b) => b.id);
-  const ph = ids.map(() => '?').join(',');
+  const ids = booksRows.map((b) => b.id);
+  const catMap = await loadCategoriesMap();
 
-  // 分类
-  const catMap = loadCategoriesMap();
   // 标签
-  const tagRows = db
-    .prepare(
-      `SELECT bt.book_id, t.id, t.name, t.created_at FROM book_tags bt
-       JOIN tags t ON t.id = bt.tag_id
-       WHERE bt.book_id IN (${ph}) ORDER BY t.name`
-    )
-    .all(...ids) as any[];
+  const tagRows = await db
+    .select({ bookId: bookTags.bookId, id: tags.id, name: tags.name, createdAt: tags.createdAt })
+    .from(bookTags)
+    .innerJoin(tags, eq(tags.id, bookTags.tagId))
+    .where(inArray(bookTags.bookId, ids))
+    .orderBy(tags.name);
   const tagsByBook = new Map<number, { id: number; name: string; createdAt: string }[]>();
   for (const r of tagRows) {
-    if (!tagsByBook.has(r.book_id)) tagsByBook.set(r.book_id, []);
-    tagsByBook.get(r.book_id)!.push({ id: r.id, name: r.name, createdAt: r.created_at });
+    if (!tagsByBook.has(r.bookId)) tagsByBook.set(r.bookId, []);
+    tagsByBook.get(r.bookId)!.push({ id: r.id, name: r.name, createdAt: r.createdAt });
   }
 
-  return books.map((row) => {
+  return booksRows.map((row) => {
     const b = rowToBook(row) as Book;
     b.category = b.categoryId != null ? catMap.get(b.categoryId) ?? null : null;
     b.tags = tagsByBook.get(b.id) ?? [];
@@ -49,106 +55,105 @@ function attachRelations(books: any[]): Book[] {
   });
 }
 
+/** 统计某表的行数（可选条件），返回 number */
+async function countFrom(table: any, where?: SQL): Promise<number> {
+  const db = getDb();
+  const rows = await db.select({ c: count() }).from(table).where(where);
+  return Number(rows[0]?.c ?? 0);
+}
+
 /* ------------------------------------------------------------------ */
 /* 书籍 CRUD                                                          */
 /* ------------------------------------------------------------------ */
 
 /** 列出书籍（支持关键字/分类/标签/阅读状态筛选） */
-export function listBooks(query: BookQuery): Book[] {
+export async function listBooks(query: BookQuery): Promise<Book[]> {
   const db = getDb();
-  const where: string[] = [];
-  const params: unknown[] = [];
+  const conds: SQL[] = [];
 
   if (query.keyword) {
-    where.push(
-      `(b.title LIKE ? OR b.original_title LIKE ? OR b.authors LIKE ? OR b.isbn13 LIKE ? OR b.isbn10 LIKE ? OR b.publisher LIKE ?)`
-    );
     const kw = `%${query.keyword}%`;
-    params.push(kw, kw, kw, kw, kw, kw);
+    conds.push(
+      or(
+        like(books.title, kw),
+        like(books.originalTitle, kw),
+        like(books.authors, kw),
+        like(books.isbn13, kw),
+        like(books.isbn10, kw),
+        like(books.publisher, kw)
+      ) as SQL
+    );
   }
-  if (query.categoryId) {
-    where.push('b.category_id = ?');
-    params.push(query.categoryId);
-  }
-  if (query.readingStatus) {
-    where.push('b.reading_status = ?');
-    params.push(query.readingStatus);
-  }
-  if (query.bookType) {
-    where.push('b.book_type = ?');
-    params.push(query.bookType);
-  }
-  if (query.tagId) {
-    where.push(`EXISTS (SELECT 1 FROM book_tags bt2 WHERE bt2.book_id = b.id AND bt2.tag_id = ?)`);
-    params.push(query.tagId);
-  }
-  if (query.hasReview) {
-    where.push('EXISTS (SELECT 1 FROM reviews r WHERE r.book_id = b.id)');
-  }
-  if (query.hasTag) {
-    where.push('EXISTS (SELECT 1 FROM book_tags bt3 WHERE bt3.book_id = b.id)');
-  }
-  if (query.hasCategory) {
-    where.push('b.category_id IS NOT NULL');
-  }
+  if (query.categoryId) conds.push(eq(books.categoryId, query.categoryId));
+  if (query.readingStatus) conds.push(eq(books.readingStatus, query.readingStatus));
+  if (query.bookType) conds.push(eq(books.bookType, query.bookType));
+  if (query.tagId)
+    conds.push(sql`EXISTS (SELECT 1 FROM book_tags bt2 WHERE bt2.book_id = ${books.id} AND bt2.tag_id = ${query.tagId})`);
+  if (query.hasReview) conds.push(sql`EXISTS (SELECT 1 FROM reviews r WHERE r.book_id = ${books.id})`);
+  if (query.hasTag) conds.push(sql`EXISTS (SELECT 1 FROM book_tags bt3 WHERE bt3.book_id = ${books.id})`);
+  if (query.hasCategory) conds.push(isNotNull(books.categoryId));
 
   const limit = Math.min(query.limit ?? 200, 500);
   const offset = query.offset ?? 0;
 
-  const sql = `
-    SELECT b.* FROM books b
-    ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
-    ORDER BY b.created_at DESC
-    LIMIT ? OFFSET ?`;
-  const rows = db.prepare(sql).all(...params, limit, offset) as any[];
+  const where: SQL | undefined = conds.length > 0 ? (and(...conds) as SQL) : undefined;
+  const rows = await db
+    .select()
+    .from(books)
+    .where(where)
+    .orderBy(desc(books.createdAt))
+    .limit(limit)
+    .offset(offset);
   return attachRelations(rows);
 }
 
 /** 书籍详情（含标签、书评） */
-export function getBook(id: number): Book | null {
+export async function getBook(id: number): Promise<Book | null> {
   const db = getDb();
-  const row = db.prepare('SELECT * FROM books WHERE id = ?').get(id) as any;
+  const rows = await db.select().from(books).where(eq(books.id, id)).limit(1);
+  const row = rows[0];
   if (!row) return null;
-  const book = attachRelations([row])[0];
 
-  const reviews = db
-    .prepare('SELECT * FROM reviews WHERE book_id = ? ORDER BY created_at DESC')
-    .all(id)
-    .map((r: any) => ({
-      id: r.id,
-      bookId: r.book_id,
-      rating: r.rating,
-      content: r.content,
-      createdAt: r.created_at,
-      updatedAt: r.updated_at,
-    }));
-  book.reviews = reviews;
+  const book = (await attachRelations([row]))[0];
+  const reviewsRows = await db
+    .select()
+    .from(reviews)
+    .where(eq(reviews.bookId, id))
+    .orderBy(desc(reviews.createdAt));
+  book.reviews = reviewsRows.map((r) => ({
+    id: r.id,
+    bookId: r.bookId,
+    rating: r.rating,
+    content: r.content,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  }));
   return book;
 }
 
 /** 检查豆瓣 id 是否已存在 */
-export function findBookByDoubanId(doubanId: string): Book | null {
+export async function findBookByDoubanId(doubanId: string): Promise<Book | null> {
   const db = getDb();
-  const row = db.prepare('SELECT * FROM books WHERE douban_id = ?').get(doubanId) as any;
-  return row ? attachRelations([row])[0] : null;
+  const rows = await db.select().from(books).where(eq(books.doubanId, doubanId)).limit(1);
+  return rows[0] ? (await attachRelations([rows[0]]))[0] : null;
 }
 
 /** 检查 Amazon ASIN 是否已存在 */
-export function findBookByAmazonAsin(asin: string): Book | null {
+export async function findBookByAmazonAsin(asin: string): Promise<Book | null> {
   const db = getDb();
-  const row = db.prepare('SELECT * FROM books WHERE amazon_asin = ?').get(asin) as any;
-  return row ? attachRelations([row])[0] : null;
+  const rows = await db.select().from(books).where(eq(books.amazonAsin, asin)).limit(1);
+  return rows[0] ? (await attachRelations([rows[0]]))[0] : null;
 }
 
 /** 检查 Open Library work key 是否已存在 */
-export function findBookByOpenLibraryKey(key: string): Book | null {
+export async function findBookByOpenLibraryKey(key: string): Promise<Book | null> {
   const db = getDb();
-  const row = db.prepare('SELECT * FROM books WHERE open_library_key = ?').get(key) as any;
-  return row ? attachRelations([row])[0] : null;
+  const rows = await db.select().from(books).where(eq(books.openLibraryKey, key)).limit(1);
+  return rows[0] ? (await attachRelations([rows[0]]))[0] : null;
 }
 
 /** 新建书籍（手动录入或豆瓣/Amazon/Open Library 导入） */
-export function createBook(
+export async function createBook(
   input: BookInput & {
     doubanId?: string | null;
     amazonAsin?: string | null;
@@ -156,24 +161,10 @@ export function createBook(
     openLibraryKey?: string | null;
     openLibraryUrl?: string | null;
   }
-): number {
+): Promise<number> {
   const db = getDb();
-  const stmt = db.prepare(`
-    INSERT INTO books (
-      douban_id, amazon_asin, isbn13, isbn10, title, subtitle, original_title, authors,
-      publisher, pubdate, price, pages, binding, series, summary, author_intro,
-      catalog, cover_url, cover_path, book_type, ebook_path, ebook_filename, ebook_size,
-      rating_average, rating_count, douban_url, amazon_url, open_library_key, open_library_url,
-      category_id, reading_status, notes
-    ) VALUES (
-      @doubanId, @amazonAsin, @isbn13, @isbn10, @title, @subtitle, @originalTitle, @authors,
-      @publisher, @pubdate, @price, @pages, @binding, @series, @summary, @authorIntro,
-      @catalog, @coverUrl, @coverPath, @bookType, @ebookPath, @ebookFilename, @ebookSize,
-      @ratingAverage, @ratingCount, @doubanUrl, @amazonUrl, @openLibraryKey, @openLibraryUrl,
-      @categoryId, @readingStatus, @notes
-    )`);
 
-  const info = stmt.run({
+  const res = await db.insert(books).values({
     doubanId: input.doubanId ?? null,
     amazonAsin: input.amazonAsin ?? null,
     isbn13: input.isbn13 ?? null,
@@ -192,9 +183,9 @@ export function createBook(
     authorIntro: input.authorIntro?.trim() || null,
     catalog: input.catalog?.trim() || null,
     coverUrl: input.coverUrl ?? null,
-    coverPath: input.coverPath ?? null, // 手动录入时可携带上传后的本地封面路径
-    bookType: input.bookType ?? 'physical', // 默认实体书（现有书籍/导入均为实体书）
-    ebookPath: input.ebookPath ?? null,     // 电子书文件路径（手动录入时可携带）
+    coverPath: input.coverPath ?? null,
+    bookType: input.bookType ?? 'physical',
+    ebookPath: input.ebookPath ?? null,
     ebookFilename: input.ebookFilename ?? null,
     ebookSize: input.ebookSize ?? null,
     ratingAverage: input.ratingAverage ?? null,
@@ -207,37 +198,50 @@ export function createBook(
     readingStatus: input.readingStatus ?? 'unread',
     notes: input.notes?.trim() || null,
   });
-  return Number(info.lastInsertRowid);
+  return Number(res.lastInsertRowid);
 }
 
-
 /** 更新书籍（允许只传入部分字段，只更新出现的字段） */
-export function updateBook(id: number, input: Partial<BookInput>): Book | null {
+export async function updateBook(id: number, input: Partial<BookInput>): Promise<Book | null> {
   const db = getDb();
-  const fields: string[] = [];
-  const params: Record<string, unknown> = { id };
+  const prev = await getBook(id);
+
+  const set: Record<string, unknown> = {};
   const map: Record<string, string> = {
-    title: 'title', subtitle: 'subtitle', originalTitle: 'original_title',
-    publisher: 'publisher', pubdate: 'pubdate', price: 'price', pages: 'pages',
-    binding: 'binding', series: 'series', summary: 'summary', authorIntro: 'author_intro',
-    catalog: 'catalog', isbn13: 'isbn13', isbn10: 'isbn10', categoryId: 'category_id',
-    readingStatus: 'reading_status', notes: 'notes',
-    coverUrl: 'cover_url', coverPath: 'cover_path',
-    bookType: 'book_type', ebookPath: 'ebook_path',
-    ebookFilename: 'ebook_filename', ebookSize: 'ebook_size',
+    title: 'title',
+    subtitle: 'subtitle',
+    originalTitle: 'originalTitle',
+    publisher: 'publisher',
+    pubdate: 'pubdate',
+    price: 'price',
+    pages: 'pages',
+    binding: 'binding',
+    series: 'series',
+    summary: 'summary',
+    authorIntro: 'authorIntro',
+    catalog: 'catalog',
+    isbn13: 'isbn13',
+    isbn10: 'isbn10',
+    categoryId: 'categoryId',
+    readingStatus: 'readingStatus',
+    notes: 'notes',
+    coverUrl: 'coverUrl',
+    coverPath: 'coverPath',
+    bookType: 'bookType',
+    ebookPath: 'ebookPath',
+    ebookFilename: 'ebookFilename',
+    ebookSize: 'ebookSize',
   };
   for (const key of Object.keys(map)) {
     if (key in input && input[key as keyof BookInput] !== undefined) {
-      fields.push(`${map[key]} = @${key}`);
-      params[key] = input[key as keyof BookInput] ?? null;
+      set[key] = input[key as keyof BookInput] ?? null;
     }
   }
   if ('authors' in input && input.authors !== undefined) {
-    fields.push('authors = @authors');
-    params.authors = stringifyAuthors(input.authors);
+    set.authors = stringifyAuthors(input.authors);
   }
-  if (fields.length === 0) return getBook(id);
-  const prev = getBook(id);
+  if (Object.keys(set).length === 0) return getBook(id);
+
   // 封面 / 电子书被替换或清除时，事后清理旧文件（避免磁盘上残留孤儿文件）
   const coverChanged =
     'coverPath' in input &&
@@ -247,32 +251,36 @@ export function updateBook(id: number, input: Partial<BookInput>): Book | null {
     'ebookPath' in input &&
     input.ebookPath !== undefined &&
     (input.ebookPath ?? null) !== (prev?.ebookPath ?? null);
-  fields.push("updated_at = datetime('now','localtime')");
-  db.prepare(`UPDATE books SET ${fields.join(', ')} WHERE id = @id`).run(params);
-  const next = getBook(id);
+
+  (set as any).updatedAt = sql`datetime('now', 'localtime')`;
+  await db.update(books).set(set as any).where(eq(books.id, id));
+
+  const next = await getBook(id);
   if (coverChanged && prev?.coverPath) removeCover(prev.coverPath);
   if (ebookChanged && prev?.ebookPath) removeEbookFile(prev.ebookPath);
   return next;
 }
 
 /** 设置书籍封面本地路径（豆瓣导入后调用） */
-export function setBookCoverPath(id: number, coverPath: string | null): void {
-  getDb()
-    .prepare(`UPDATE books SET cover_path = ?, updated_at = datetime('now','localtime') WHERE id = ?`)
-    .run(coverPath, id);
+export async function setBookCoverPath(id: number, coverPath: string | null): Promise<void> {
+  const db = getDb();
+  await db
+    .update(books)
+    .set({ coverPath, updatedAt: sql`datetime('now', 'localtime')` })
+    .where(eq(books.id, id));
 }
 
 /** 设置书籍分类 */
-export function setBookCategory(id: number, categoryId: number | null): Book | null {
-  return updateBook(id, { categoryId } as BookInput);
+export async function setBookCategory(id: number, categoryId: number | null): Promise<Book | null> {
+  return updateBook(id, { categoryId });
 }
 
 /** 删除书籍（级联删除标签关联、书评与封面文件） */
-export function deleteBook(id: number): boolean {
+export async function deleteBook(id: number): Promise<boolean> {
   const db = getDb();
-  const book = getBook(id);
+  const book = await getBook(id);
   if (!book) return false;
-  db.prepare('DELETE FROM books WHERE id = ?').run(id);
+  await db.delete(books).where(eq(books.id, id));
   if (book.coverPath) removeCover(book.coverPath);
   if (book.ebookPath) removeEbookFile(book.ebookPath);
   return true;
@@ -282,146 +290,165 @@ export function deleteBook(id: number): boolean {
 /* 分类 / 标签                                                         */
 /* ------------------------------------------------------------------ */
 
-export function listCategories() {
+export async function listCategories() {
   const db = getDb();
-  const rows = db
-    .prepare(
-      `SELECT c.*, (SELECT COUNT(*) FROM books b WHERE b.category_id = c.id) AS book_count
-       FROM categories c ORDER BY c.id`
-    )
-    .all() as any[];
+  const rows = await db
+    .select({
+      id: categories.id,
+      name: categories.name,
+      color: categories.color,
+      createdAt: categories.createdAt,
+      bookCount: sql<number>`(SELECT COUNT(*) FROM books WHERE books.category_id = ${categories.id})`,
+    })
+    .from(categories)
+    .orderBy(categories.id);
   return rows.map((r) => ({
     id: r.id,
     name: r.name,
     color: r.color,
-    bookCount: r.book_count,
-    createdAt: r.created_at,
+    bookCount: r.bookCount,
+    createdAt: r.createdAt,
   }));
 }
 
 /** 校验分类颜色不与其他分类重复（excludeId 用于重命名/改色时排除自身） */
-function assertColorUnique(color: string, excludeId?: number): void {
+async function assertColorUnique(color: string, excludeId?: number): Promise<void> {
   const db = getDb();
-  const row = db
-    .prepare('SELECT id FROM categories WHERE color = ? AND (? IS NULL OR id != ?)')
-    .get(color, excludeId ?? null, excludeId ?? null);
-  if (row) throw new Error('该分类颜色已被其他分类使用，请更换');
+  const rows = await db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(
+      excludeId != null
+        ? and(eq(categories.color, color), ne(categories.id, excludeId))
+        : eq(categories.color, color)
+    )
+    .limit(1);
+  if (rows.length > 0) throw new Error('该分类颜色已被其他分类使用，请更换');
 }
 
-export function createCategory(name: string, color: string) {
+export async function createCategory(name: string, color: string): Promise<number> {
   const db = getDb();
   const c = color?.trim() || '#6b7280';
-  assertColorUnique(c);
-  const info = db.prepare('INSERT INTO categories (name, color) VALUES (?, ?)').run(name.trim(), c);
-  return Number(info.lastInsertRowid);
+  await assertColorUnique(c);
+  const res = await db.insert(categories).values({ name: name.trim(), color: c });
+  return Number(res.lastInsertRowid);
 }
 
-export function updateCategory(id: number, name?: string, color?: string) {
+export async function updateCategory(id: number, name?: string, color?: string) {
   const db = getDb();
-  const cur = db.prepare('SELECT * FROM categories WHERE id = ?').get(id) as any;
+  const cur = (await db.select().from(categories).where(eq(categories.id, id)).limit(1))[0];
   if (!cur) return null;
   const newName = name?.trim() || cur.name;
   const newColor = color?.trim() || cur.color;
-  if (newColor !== cur.color) assertColorUnique(newColor, id);
-  db.prepare('UPDATE categories SET name = ?, color = ? WHERE id = ?').run(newName, newColor, id);
-  return db.prepare('SELECT * FROM categories WHERE id = ?').get(id);
+  if (newColor !== cur.color) await assertColorUnique(newColor, id);
+  await db.update(categories).set({ name: newName, color: newColor }).where(eq(categories.id, id));
+  return (await db.select().from(categories).where(eq(categories.id, id)).limit(1))[0];
 }
 
-export function deleteCategory(id: number): boolean {
+export async function deleteCategory(id: number): Promise<boolean> {
   const db = getDb();
   // 分类删除后，书籍的 category_id 通过外键 ON DELETE SET NULL 自动置空
-  return db.prepare('DELETE FROM categories WHERE id = ?').run(id).changes > 0;
+  const res = await db.delete(categories).where(eq(categories.id, id));
+  return res.changes > 0;
 }
 
-
-export function listTags() {
+export async function listTags() {
   const db = getDb();
-  const rows = db
-    .prepare(
-      `SELECT t.*, (SELECT COUNT(*) FROM book_tags bt WHERE bt.tag_id = t.id) AS book_count
-       FROM tags t ORDER BY book_count DESC, t.name`
-    )
-    .all() as any[];
-  return rows.map((r) => ({ id: r.id, name: r.name, bookCount: r.book_count, createdAt: r.created_at }));
+  const rows = await db
+    .select({
+      id: tags.id,
+      name: tags.name,
+      createdAt: tags.createdAt,
+      bookCount: sql<number>`(SELECT COUNT(*) FROM book_tags WHERE book_tags.tag_id = ${tags.id})`,
+    })
+    .from(tags);
+  return rows
+    .map((r) => ({ id: r.id, name: r.name, bookCount: r.bookCount, createdAt: r.createdAt }))
+    .sort((a, b) => (b.bookCount - a.bookCount) || a.name.localeCompare(b.name));
 }
 
 /** 设置书籍的标签（传入标签名数组，自动创建新标签） */
-export function setBookTags(bookId: number, tagNames: string[]): void {
+export async function setBookTags(bookId: number, tagNames: string[]): Promise<void> {
   const db = getDb();
-  const tx = db.transaction(() => {
-    db.prepare('DELETE FROM book_tags WHERE book_id = ?').run(bookId);
+  // better-sqlite3 的 db.transaction 回调须同步执行（不能返回 Promise），
+  // 所以这里用同步的 .run()/.get() 驱动 Drizzle；D1 场景下改为 await 即可。
+  db.transaction(() => {
+    db.delete(bookTags).where(eq(bookTags.bookId, bookId)).run();
     const names = [...new Set(tagNames.map((n) => n.trim()).filter(Boolean))];
     for (const name of names) {
-      let tag = db.prepare('SELECT id FROM tags WHERE name = ?').get(name) as any;
-      if (!tag) {
-        const info = db.prepare('INSERT INTO tags (name) VALUES (?)').run(name);
-        tag = { id: Number(info.lastInsertRowid) };
+      let tag = db.select({ id: tags.id }).from(tags).where(eq(tags.name, name)).get();
+      let tagId: number;
+      if (tag) {
+        tagId = tag.id;
+      } else {
+        const info = db.insert(tags).values({ name }).run();
+        tagId = Number(info.lastInsertRowid);
       }
-      db.prepare('INSERT OR IGNORE INTO book_tags (book_id, tag_id) VALUES (?, ?)').run(bookId, tag.id);
+      db.insert(bookTags).values({ bookId, tagId }).onConflictDoNothing().run();
     }
   });
-  tx();
 }
 
-export function deleteTag(id: number): boolean {
+export async function deleteTag(id: number): Promise<boolean> {
   const db = getDb();
-  return db.prepare('DELETE FROM tags WHERE id = ?').run(id).changes > 0;
+  const res = await db.delete(tags).where(eq(tags.id, id));
+  return res.changes > 0;
 }
 
 /* ------------------------------------------------------------------ */
 /* 书评                                                               */
 /* ------------------------------------------------------------------ */
 
-export function addReview(bookId: number, rating: number | null, content: string) {
+export async function addReview(bookId: number, rating: number | null, content: string): Promise<Book | null> {
   const db = getDb();
-  db.prepare('INSERT INTO reviews (book_id, rating, content) VALUES (?, ?, ?)')
-    .run(bookId, rating, content.trim());
+  await db.insert(reviews).values({ bookId, rating, content: content.trim() });
   return getBook(bookId);
 }
 
-export function updateReview(reviewId: number, rating: number | null, content: string) {
+export async function updateReview(reviewId: number, rating: number | null, content: string): Promise<Book | null> {
   const db = getDb();
-  const r = db.prepare('SELECT book_id FROM reviews WHERE id = ?').get(reviewId) as any;
+  const r = (await db.select({ bookId: reviews.bookId }).from(reviews).where(eq(reviews.id, reviewId)).limit(1))[0];
   if (!r) throw new Error('书评不存在');
-  db.prepare(
-    `UPDATE reviews SET rating = ?, content = ?, updated_at = datetime('now','localtime') WHERE id = ?`
-  ).run(rating, content.trim(), reviewId);
-  return getBook(r.book_id);
+  await db
+    .update(reviews)
+    .set({ rating, content: content.trim(), updatedAt: sql`datetime('now', 'localtime')` })
+    .where(eq(reviews.id, reviewId));
+  return getBook(r.bookId);
 }
 
-export function deleteReview(reviewId: number): number | null {
+export async function deleteReview(reviewId: number): Promise<number | null> {
   const db = getDb();
-  const r = db.prepare('SELECT book_id FROM reviews WHERE id = ?').get(reviewId) as any;
+  const r = (await db.select({ bookId: reviews.bookId }).from(reviews).where(eq(reviews.id, reviewId)).limit(1))[0];
   if (!r) return null;
-  db.prepare('DELETE FROM reviews WHERE id = ?').run(reviewId);
-  return r.book_id;
+  await db.delete(reviews).where(eq(reviews.id, reviewId));
+  return r.bookId;
 }
 
 /* ------------------------------------------------------------------ */
 /* 统计                                                               */
 /* ------------------------------------------------------------------ */
 
-export function getStats(): Stats {
+export async function getStats(): Promise<Stats> {
   const db = getDb();
-  const q = (sql: string): number =>
-    (db.prepare(sql).get() as { c: number }).c;
-  const recentRows = db
-    .prepare('SELECT * FROM books ORDER BY created_at DESC LIMIT 5')
-    .all() as any[];
-  const countByReadingStatus = (s: string): number =>
-    (db.prepare('SELECT COUNT(*) AS c FROM books WHERE reading_status = ?').get(s) as { c: number }).c;
+  const countByReadingStatus = (s: ReadingStatus): Promise<number> => countFrom(books, eq(books.readingStatus, s));
+  const recentRows = await db.select().from(books).orderBy(desc(books.createdAt)).limit(5);
+
   return {
-    totalBooks: q('SELECT COUNT(*) AS c FROM books'),
-    physicalCount: q("SELECT COUNT(*) AS c FROM books WHERE book_type = 'physical'"),
-    ebookCount: q("SELECT COUNT(*) AS c FROM books WHERE book_type = 'ebook'"),
-    unread: countByReadingStatus('unread'),
-    reading: countByReadingStatus('reading'),
-    read: countByReadingStatus('read'),
-    abandoned: countByReadingStatus('abandoned'),
-    tagCount: q('SELECT COUNT(*) AS c FROM tags'),
-    categoryCount: q('SELECT COUNT(*) AS c FROM categories'),
-    reviewCount: q('SELECT COUNT(*) AS c FROM reviews'),
-    recentBooks: attachRelations(recentRows),
+    totalBooks: await countFrom(books),
+    physicalCount: await countFrom(books, eq(books.bookType, 'physical')),
+    ebookCount: await countFrom(books, eq(books.bookType, 'ebook')),
+    unread: await countByReadingStatus('unread'),
+    reading: await countByReadingStatus('reading'),
+    read: await countByReadingStatus('read'),
+    abandoned: await countByReadingStatus('abandoned'),
+    tagCount: await countFrom(tags),
+    categoryCount: await countFrom(categories),
+    reviewCount: await countFrom(reviews),
+    recentBooks: await attachRelations(recentRows),
   };
 }
+
+
+
+
 

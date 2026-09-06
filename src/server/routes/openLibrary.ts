@@ -87,10 +87,10 @@ openLibraryRouter.post('/save', async (req, res) => {
 
     const openLibraryKey = String(detail.openLibraryKey);
     // 查重：已在书架中则直接返回已有记录
-    const existing = findBookByOpenLibraryKey(openLibraryKey);
+    const existing = await findBookByOpenLibraryKey(openLibraryKey);
     if (existing) return res.json({ book: existing, alreadyExists: true });
 
-    const bookId = createBook({
+    const bookId = await createBook({
       title: (detail.title as string) || titleFallback || '未命名',
       subtitle: detail.subtitle as string | undefined,
       originalTitle: detail.originalTitle as string | undefined,
@@ -120,10 +120,10 @@ openLibraryRouter.post('/save', async (req, res) => {
       const name = openLibraryKey.replace('/works/', '') || String(detail.isbn13 ?? bookId);
       // Open Library 封面来自 covers.openlibrary.org，用作品 key 做本地文件名，Referer 带上 openlibrary.org
       const localPath = await downloadCover(name, coverUrl, String(detail.title ?? bookId), 'https://openlibrary.org/');
-      if (localPath) setBookCoverPath(bookId, localPath);
+      if (localPath) await setBookCoverPath(bookId, localPath);
     }
 
-    res.status(201).json({ book: getBook(bookId), alreadyExists: false });
+    res.status(201).json({ book: await getBook(bookId), alreadyExists: false });
   } catch (e: any) {
     res.status(502).json({ error: e.message || '保存失败' });
   }

@@ -65,10 +65,10 @@ amazonRouter.post('/save', async (req, res) => {
 
     const asin = String(detail.asin);
     // 查重：已在书架中则直接返回已有记录
-    const existing = findBookByAmazonAsin(asin);
+    const existing = await findBookByAmazonAsin(asin);
     if (existing) return res.json({ book: existing, alreadyExists: true });
 
-    const bookId = createBook({
+    const bookId = await createBook({
       title: (detail.title as string) || titleFallback || '未命名',
       subtitle: detail.subtitle as string | undefined,
       originalTitle: detail.originalTitle as string | undefined,
@@ -97,10 +97,10 @@ amazonRouter.post('/save', async (req, res) => {
     if (coverUrl) {
       // Amazon 封面取自 m.media-amazon.com，用当前 ASIN 作为本地文件名，Referer 带上 Amazon 域名
       const localPath = await downloadCover(asin, coverUrl, String(detail.title ?? bookId), 'https://www.amazon.com/');
-      if (localPath) setBookCoverPath(bookId, localPath);
+      if (localPath) await setBookCoverPath(bookId, localPath);
     }
 
-    res.status(201).json({ book: getBook(bookId), alreadyExists: false });
+    res.status(201).json({ book: await getBook(bookId), alreadyExists: false });
   } catch (e: any) {
     res.status(502).json({ error: e.message || '保存失败' });
   }

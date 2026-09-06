@@ -1,9 +1,15 @@
 /**
  * server/db/index.ts
  * ------------------------------------------------------------------
- * 数据库连接单例：打开 SQLite、执行建表语句、注入默认分类。
+ * 数据库连接单例：打开 SQLite、执行建表语句、注入默认分类，并暴露
+ * Drizzle ORM 实例（类型安全的数据访问）。
+ *
+ * 本地开发使用 better-sqlite3（同步 API，简单可靠）；
+ * 将来部署到 Cloudflare 时，仅需把这里改为 drizzle-orm/d1 并传入
+ * D1 binding（env.DB），上方 getDb() 的查询代码无需改动。
  */
 import Database from 'better-sqlite3';
+import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,26 +24,28 @@ export const COVERS_DIR = path.join(DATA_DIR, 'covers');
 export const EBOOKS_DIR = path.join(DATA_DIR, 'ebooks');
 export const DB_PATH = path.join(DATA_DIR, 'papyrus.db');
 
-let db: Database.Database | null = null;
+let raw: Database.Database | null = null;
+let db: BetterSQLite3Database | null = null;
 
-/** 获取数据库实例（懒加载） */
-export function getDb(): Database.Database {
+/** 获取 Drizzle 数据库实例（懒加载，Node/better-sqlite3 驱动） */
+export function getDb(): BetterSQLite3Database {
   if (db) return db;
 
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.mkdirSync(COVERS_DIR, { recursive: true });
   fs.mkdirSync(EBOOKS_DIR, { recursive: true });
 
-  db = new Database(DB_PATH);
-  db.pragma('journal_mode = WAL'); // 并发读写更安全
-  db.pragma('foreign_keys = ON');  // 启用外键级联删除
+  raw = new Database(DB_PATH);
+  raw.pragma('journal_mode = WAL'); // 并发读写更安全
+  raw.pragma('foreign_keys = ON');  // 启用外键级联删除
   // 先迁移旧库（补齐缺失列），再执行建表/索引脚本：
   // SCHEMA_SQL 里的 idx_books_amazon_asin 唯一索引依赖 amazon_asin 列，
   // 若先跑 SCHEMA_SQL 会在旧库（尚无该列）上报 "no such column"。
-  migrate(db);
-  db.exec(SCHEMA_SQL);
+  migrate(raw);
+  raw.exec(SCHEMA_SQL);
 
-  seedCategories(db);
+  seedCategories(raw);
+  db = drizzle({ client: raw });
   return db;
 }
 
@@ -170,26 +178,30 @@ function seedCategories(db: Database.Database): void {
 
 /** 关闭数据库（用于测试/退出） */
 export function closeDb(): void {
-  if (db) {
-    db.close();
+  if (raw) {
+    raw.close();
+    raw = null;
     db = null;
   }
 }
 
-/** 将数据库行转换为前端 Book 对象（统一处理字段映射） */
-export function rowToBook(row: Record<string, unknown>): any {
+/**
+ * 将 Drizzle 查询返回的行（camelCase 属性名）转换为前端 Book 对象。
+ * 统一处理字段映射与 authors JSON 字符串解析。
+ */
+export function rowToBook(row: Record<string, any>): any {
   return {
     id: row.id,
-    doubanId: row.douban_id ?? null,
-    amazonAsin: row.amazon_asin ?? null,
-    amazonUrl: row.amazon_url ?? null,
-    openLibraryKey: row.open_library_key ?? null,
-    openLibraryUrl: row.open_library_url ?? null,
+    doubanId: row.doubanId ?? null,
+    amazonAsin: row.amazonAsin ?? null,
+    amazonUrl: row.amazonUrl ?? null,
+    openLibraryKey: row.openLibraryKey ?? null,
+    openLibraryUrl: row.openLibraryUrl ?? null,
     isbn13: row.isbn13 ?? null,
     isbn10: row.isbn10 ?? null,
     title: row.title,
     subtitle: row.subtitle ?? null,
-    originalTitle: row.original_title ?? null,
+    originalTitle: row.originalTitle ?? null,
     authors: parseAuthors(row.authors),
     publisher: row.publisher ?? null,
     pubdate: row.pubdate ?? null,
@@ -198,22 +210,22 @@ export function rowToBook(row: Record<string, unknown>): any {
     binding: row.binding ?? null,
     series: row.series ?? null,
     summary: row.summary ?? null,
-    authorIntro: row.author_intro ?? null,
+    authorIntro: row.authorIntro ?? null,
     catalog: row.catalog ?? null,
-    coverUrl: row.cover_url ?? null,
-    coverPath: row.cover_path ?? null,
-    bookType: (row.book_type as BookType) ?? 'physical',
-    ebookPath: row.ebook_path ?? null,
-    ebookFilename: row.ebook_filename ?? null,
-    ebookSize: typeof row.ebook_size === 'number' ? row.ebook_size : null,
-    ratingAverage: row.rating_average ?? null,
-    ratingCount: row.rating_count ?? null,
-    doubanUrl: row.douban_url ?? null,
-    categoryId: row.category_id ?? null,
-    readingStatus: row.reading_status ?? 'unread',
+    coverUrl: row.coverUrl ?? null,
+    coverPath: row.coverPath ?? null,
+    bookType: (row.bookType as BookType) ?? 'physical',
+    ebookPath: row.ebookPath ?? null,
+    ebookFilename: row.ebookFilename ?? null,
+    ebookSize: typeof row.ebookSize === 'number' ? row.ebookSize : null,
+    ratingAverage: row.ratingAverage ?? null,
+    ratingCount: row.ratingCount ?? null,
+    doubanUrl: row.doubanUrl ?? null,
+    categoryId: row.categoryId ?? null,
+    readingStatus: row.readingStatus ?? 'unread',
     notes: row.notes ?? null,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
   };
 }
 
@@ -233,3 +245,5 @@ export { parseAuthors };
 export function stringifyAuthors(authors: string[] | undefined | null): string {
   return JSON.stringify(Array.isArray(authors) ? authors : []);
 }
+
+

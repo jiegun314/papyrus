@@ -65,10 +65,10 @@ doubanRouter.post('/save', async (req, res) => {
 
     const doubanId = String(detail.doubanId);
     // 查重：已在书架中则直接返回已有记录
-    const existing = findBookByDoubanId(doubanId);
+    const existing = await findBookByDoubanId(doubanId);
     if (existing) return res.json({ book: existing, alreadyExists: true });
 
-    const bookId = createBook({
+    const bookId = await createBook({
       title: (detail.title as string) || titleFallback || '未命名',
       subtitle: detail.subtitle as string | undefined,
       originalTitle: detail.originalTitle as string | undefined,
@@ -96,10 +96,10 @@ doubanRouter.post('/save', async (req, res) => {
     const coverUrl = detail.coverUrl as string | null;
     if (coverUrl) {
       const localPath = await downloadCover(doubanId, coverUrl, String(detail.title ?? bookId));
-      if (localPath) setBookCoverPath(bookId, localPath);
+      if (localPath) await setBookCoverPath(bookId, localPath);
     }
 
-    res.status(201).json({ book: getBook(bookId), alreadyExists: false });
+    res.status(201).json({ book: await getBook(bookId), alreadyExists: false });
   } catch (e: any) {
     res.status(502).json({ error: e.message || '保存失败' });
   }
