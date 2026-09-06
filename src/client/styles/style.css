@@ -1181,50 +1181,49 @@ button.stat-card.clickable { cursor: pointer; }
 .seg-btn:hover { background: var(--bg-deep); color: var(--ink); }
 .seg-btn.active { background: var(--accent); color: #fff; }
 
-/* ---------- 添加书籍：第一步选择载体类型 ---------- */
-.add-type-step { padding: 8px 2px 6px; }
-.add-type-hint { color: var(--ink-soft); font-size: 14px; margin-bottom: 16px; }
-.type-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.type-card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 20px 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--card);
-  cursor: pointer;
-  text-align: left;
-  transition: all .16s;
-  font-family: var(--sans);
-}
-.type-card:hover { border-color: var(--accent); box-shadow: var(--shadow); transform: translateY(-1px); }
-.type-card .type-icon { font-size: 30px; line-height: 1; }
-.type-card .type-name { font-size: 17px; font-weight: 700; color: var(--ink); }
-.type-card .type-desc { font-size: 12.5px; color: var(--ink-faint); line-height: 1.5; }
-
-/* 已选载体类型的提示条（置于录入方式上方） */
-.add-type-bar {
-  display: flex;
+/* ---------- 添加书籍：标题右侧的载体类型滑动切换开关 ---------- */
+.add-book-title {
+  display: inline-flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
-  padding: 10px 12px;
-  background: var(--accent-soft);
-  border-radius: 10px;
 }
-.add-type-badge {
-  display: inline-block;
-  padding: 3px 12px;
+.book-type-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  background: var(--bg-deep);
+  border: 1px solid var(--line);
   border-radius: 999px;
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: .5px;
-  color: #fff;
+  padding: 2px;
 }
-.add-type-badge.physical { background: var(--ink-soft); }
-.add-type-badge.ebook { background: var(--teal); }
+.book-type-switch .switch-thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc(50% - 2px);
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .14);
+  transition: transform .18s ease;
+}
+.book-type-switch .switch-thumb.ebook { transform: translateX(100%); }
+.book-type-switch button {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0;
+  border: none;
+  background: transparent;
+  padding: 4px 14px;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+  white-space: nowrap;
+  border-radius: 999px;
+}
+.book-type-switch button.active { color: var(--ink); }
 
 /* 简介 / 备注 / 书评 */
 .summary-text { margin-top: 6px; font-size: 14px; color: var(--ink-soft); line-height: 1.8; white-space: pre-wrap; }
