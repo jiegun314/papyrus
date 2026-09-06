@@ -278,6 +278,7 @@ export async function searchDouban(query: string): Promise<DoubanSearchResult[]>
         url: String(detail.doubanUrl || `${BASE}/subject/${detail.doubanId}/`),
         image: String(detail.coverUrl || ''),
         year: typeof detail.pubdate === 'string' ? detail.pubdate : undefined,
+        publisher: typeof detail.publisher === 'string' && detail.publisher ? detail.publisher : undefined,
         isbn,
       },
     ];
@@ -293,10 +294,18 @@ export async function searchDouban(query: string): Promise<DoubanSearchResult[]>
       id: String(d.id),
       title: String(d.title),
       subtitle: typeof d.sub_title === 'string' ? d.sub_title : undefined,
-      authors: typeof d.author === 'string' ? d.author : undefined,
+      // 联想接口返回的是 author_name（而非 author），这里取 author_name 并兼容老的 author 字段
+      authors:
+        typeof d.author_name === 'string' && d.author_name
+          ? d.author_name
+          : typeof d.author === 'string'
+            ? d.author
+            : undefined,
       url: String(d.url || `${BASE}/subject/${d.id}/`),
       image: String(d.image || ''),
       year: typeof d.year === 'string' ? d.year : undefined,
+      // 联想接口通常不返回出版社；若返回则透传，由前端在 ISBN 直达路径下补全
+      publisher: typeof d.publisher === 'string' && d.publisher ? d.publisher : undefined,
       isbn: typeof d.isbn === 'string' ? d.isbn : undefined,
     }));
 }

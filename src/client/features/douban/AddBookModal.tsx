@@ -195,11 +195,32 @@ function DoubanPanel({ onSaved, bookType }: { onSaved: () => void; bookType: Boo
       setFeedback(
         items.length ? { kind: 'none' } : { kind: 'empty', text: '没有找到相关图书，换个关键词试试' }
       );
+      // 豆瓣「subject_suggest」联想接口不返回出版社（只给作者/出版年），
+      // 这里逐条抓取详情页在后台补齐 publisher，让第二行能显示「作者 · 出版社 · 出版日期」。
+      // 不阻塞首屏：列表先渲染，出版社到一条补一条。
+      enrichPublisher(items);
     } catch (e) {
       setList([]);
       setSearching(false);
       setFeedback({ kind: 'error', text: errorMessage(e) });
     }
+  };
+
+  /** 后台逐条补齐出版社信息（复用详情预览接口，豆瓣侧已做限频） */
+  const enrichPublisher = (items: DoubanSearchResult[]) => {
+    items.forEach((item) => {
+      if (item.publisher) return; // ISBN 直达路径已带出版社，无需再补
+      doubanPreview({ id: item.id })
+        .then((detail) => {
+          const publisher =
+            typeof detail?.publisher === 'string' && detail.publisher ? detail.publisher : undefined;
+          if (!publisher) return;
+          setList((prev) => prev.map((it) => (it.id === item.id ? { ...it, publisher } : it)));
+        })
+        .catch(() => {
+          // 静默失败：无出版社、被拒或用户已切换结果时保持原样
+        });
+    });
   };
 
   const handleScan = (isbn: string) => {
@@ -283,6 +304,7 @@ function DoubanPanel({ onSaved, bookType }: { onSaved: () => void; bookType: Boo
                   </div>
                   <div className="db-meta">
                     {item.authors ?? ''}
+                    {item.publisher ? ` · ${item.publisher}` : ''}
                     {item.year ? ` · ${item.year}` : ''}
                     {item.isbn ? ` · ISBN ${item.isbn}` : ''}
                   </div>

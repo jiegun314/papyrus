@@ -142,6 +142,7 @@ export interface DoubanSearchResult {
   authors?: string;
   url: string;
   image: string;      // 封面小图
+  publisher?: string; // 出版社（仅 ISBN 直达路径可从详情页解析到；关键字联想接口不返回）
   year?: string;
   isbn?: string;
 }
