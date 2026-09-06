@@ -124,8 +124,8 @@ body {
 .shelf-side {
   position: sticky;
   top: 74px;                       /* 顶部吸顶导航（约 61px）+ 呼吸间距 */
-  flex: 0 0 158px;
-  width: 158px;
+  flex: 0 0 176px;
+  width: 176px;
   max-height: calc(100vh - 98px);  /* 视口高度不足时列内自行滚动，卡片不挤占左侧书籍区 */
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -144,27 +144,44 @@ body {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 10px 14px 12px;
   box-shadow: var(--shadow);
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 3px;
+  align-items: center;             /* 文案与数字垂直居中，保持同一水平线 */
+  justify-content: space-between;  /* 文案靠左、数字靠右，两端对齐 */
+  gap: 18px;
+  padding: 12px 22px;              /* 左右两侧留白稍多一些 */
+  min-height: 76px;
   transition: transform .16s;
 }
 button.stat-card {
   font-family: var(--sans);
   text-align: left;
   color: inherit;
+  width: 100%;
 }
 button.stat-card.clickable { cursor: pointer; }
 .stat-card.clickable:hover { transform: translateY(-2px); }
-.stat-card .stat-label { display: flex; align-items: center; gap: 7px; font-size: 18px; font-weight: 600; color: var(--ink-soft); letter-spacing: .3px; text-align: left; }
-.stat-card .stat-label-icon { flex: none; font-size: 16px; line-height: 1; }
-.stat-card .stat-num { font-size: 32px; font-weight: 800; font-family: var(--serif); color: var(--accent); line-height: 1.05; text-align: center; }
+
+/* 左侧：灰色文案，垂直居中；无底色，字体放大一号 */
+.stat-card .stat-label {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  color: var(--ink-soft);
+}
+
+/* 右侧：彩色数字，垂直水平居中，与左侧文案同一水平线 */
+.stat-card .stat-num {
+  font-size: 32px;
+  font-weight: 800;
+  font-family: var(--serif);
+  color: var(--accent);
+  line-height: 1;
+}
 .stat-card .stat-num.teal { color: var(--teal); }
 .stat-card .stat-num.green { color: var(--green); }
-.stat-card .stat-num.gray { color: var(--ink-soft); }
+.stat-card .stat-num.gold { color: var(--gold); }
+.stat-card .stat-num.gray { color: var(--ink); }
 .stat-card .stat-num.danger { color: var(--danger); }
 
 /* 统计分组：藏书总数 / 载体类型 / 阅读状态；组间用分隔线区分 */
@@ -355,7 +372,6 @@ button.stat-card.clickable { cursor: pointer; }
 .filter-select-option:hover { background: rgba(0,0,0,.05); }
 .filter-select-option.is-selected { background: rgba(51,104,160,.12); color: var(--accent); }
 .filter-select-option-label { white-space: nowrap; }
-.filter-select-option-icon { flex: none; font-size: 15px; line-height: 1; }
 
 .tag-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip {

@@ -5,7 +5,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import type { BookQuery, Category, ReadingStatus } from '../../../shared/types';
-import { READING_STATUS_OPTIONS, READING_STATUS_TEXT, READING_STATUS_ICON } from '../../lib/readingStatus';
+import { READING_STATUS_OPTIONS, READING_STATUS_TEXT } from '../../lib/readingStatus';
 import { FilterSelect } from './FilterSelect';
 
 export function FilterBar({
@@ -96,7 +96,7 @@ export function FilterBar({
       <FilterSelect<ReadingStatus>
         placeholder="全部阅读状态"
         value={query.readingStatus}
-        options={READING_STATUS_OPTIONS.map((s) => ({ value: s, label: READING_STATUS_TEXT[s], icon: READING_STATUS_ICON[s] }))}
+        options={READING_STATUS_OPTIONS.map((s) => ({ value: s, label: READING_STATUS_TEXT[s] }))}
         onChange={(readingStatus) => onChange({ readingStatus })}
       />
     </div>
