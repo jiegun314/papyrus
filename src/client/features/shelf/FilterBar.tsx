@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { BookQuery, Category, ReadingStatus } from '../../../shared/types';
 import { READING_STATUS_OPTIONS, READING_STATUS_TEXT } from '../../lib/readingStatus';
+import { FilterSelect } from './FilterSelect';
 
 export function FilterBar({
   categories,
@@ -86,36 +87,18 @@ export function FilterBar({
           </button>
         ) : null}
       </div>
-      <select
-        className="select"
-        value={query.categoryId ? String(query.categoryId) : ''}
-        onChange={(e) => {
-          const v = e.target.value;
-          onChange({ categoryId: v ? Number(v) : undefined });
-        }}
-      >
-        <option value="">全部分类</option>
-        {categories.map((c) => (
-          <option key={c.id} value={String(c.id)}>
-            {c.name}
-          </option>
-        ))}
-      </select>
-      <select
-        className="select"
-        value={query.readingStatus ?? ''}
-        onChange={(e) => {
-          const v = e.target.value;
-          onChange({ readingStatus: (v || undefined) as ReadingStatus | undefined });
-        }}
-      >
-        <option value="">全部阅读状态</option>
-        {READING_STATUS_OPTIONS.map((s) => (
-          <option key={s} value={s}>
-            {READING_STATUS_TEXT[s]}
-          </option>
-        ))}
-      </select>
+      <FilterSelect<number>
+        placeholder="全部分类"
+        value={query.categoryId}
+        options={categories.map((c) => ({ value: c.id, label: c.name, color: c.color }))}
+        onChange={(categoryId) => onChange({ categoryId })}
+      />
+      <FilterSelect<ReadingStatus>
+        placeholder="全部阅读状态"
+        value={query.readingStatus}
+        options={READING_STATUS_OPTIONS.map((s) => ({ value: s, label: READING_STATUS_TEXT[s] }))}
+        onChange={(readingStatus) => onChange({ readingStatus })}
+      />
     </div>
   );
 }

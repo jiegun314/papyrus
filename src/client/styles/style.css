@@ -272,6 +272,84 @@ button.stat-card.clickable { cursor: pointer; }
 }
 .select:focus { border-color: var(--accent); }
 
+/* ---------- 自定义下拉筛选（FilterSelect） ---------- */
+.filter-select { position: relative; }
+.filter-select-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 12px 10px 14px;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  font-family: var(--sans);
+  outline: none;
+  transition: border-color .16s, box-shadow .16s;
+}
+.filter-select-trigger:hover { border-color: var(--ink-faint); }
+.filter-select-trigger.is-open,
+.filter-select-trigger:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(51,104,160,.12); }
+.filter-select-trigger.is-active { border-color: var(--accent); }
+.filter-select-label { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.filter-select-text { line-height: 1; }
+.filter-select-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.08);
+}
+.filter-select-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin: -4px -6px -4px 0;
+  border-radius: 50%;
+  color: var(--ink-faint);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color .16s, background-color .16s;
+}
+.filter-select-clear:hover { color: var(--ink); background: rgba(0,0,0,.06); }
+.filter-select-caret { color: var(--ink-faint); font-size: 12px; line-height: 1; margin-left: 2px; }
+.filter-select-menu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  min-width: 100%;
+  padding: 6px;
+  margin: 0;
+  list-style: none;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(0,0,0,.14);
+  max-height: 280px;
+  overflow-y: auto;
+}
+.filter-select-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color .12s;
+}
+.filter-select-option:hover { background: rgba(0,0,0,.05); }
+.filter-select-option.is-selected { background: rgba(51,104,160,.12); color: var(--accent); }
+.filter-select-option-label { white-space: nowrap; }
+
 .tag-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip {
   display: inline-flex;
