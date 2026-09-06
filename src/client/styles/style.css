@@ -809,7 +809,7 @@ button.stat-card.clickable { cursor: pointer; }
   padding-top: 18px;
   border-top: 1px dashed var(--line);
 }
-.detail-title { font-family: var(--serif); font-size: 24px; font-weight: 700; line-height: 1.3; }
+.detail-title { font-family: var(--serif); font-size: 24px; font-weight: 700; line-height: 1.3; margin-top: 8px; }
 .detail-subtitle { color: var(--ink-soft); font-size: 14.5px; margin-top: 4px; }
 
 /* 书籍载体类型标签（详情标题前，实体书 / 电子书） */
@@ -847,7 +847,8 @@ button.stat-card.clickable { cursor: pointer; }
 .detail-meta dt { color: var(--ink-faint); white-space: nowrap; }
 .detail-meta dd { color: var(--ink); }
 
-.detail-tags { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.detail-cats-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 28px; margin-top: 16px; }
+.detail-tags { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; flex: 1; min-width: 0; border-left: 1px solid var(--line); padding-left: 24px; }
 .detail-tags .chip { cursor: default; }
 .detail-tags .chip.editable { cursor: pointer; border-style: dashed; }
 
@@ -1051,7 +1052,7 @@ button.stat-card.clickable { cursor: pointer; }
 .my-rating { color: var(--ink-soft); }
 
 /* 分类行 + 颜色圆点 */
-.detail-category { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 13.5px; color: var(--ink-soft); }
+.detail-category { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink-soft); flex: none; }
 .category-select {
   border: 1px solid var(--line);
   border-radius: 8px;

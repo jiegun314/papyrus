@@ -271,24 +271,6 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
 
           {/* 右：书籍信息 */}
           <div className="detail-info">
-            <div className="detail-category">
-              <span className="tags-label">分类：</span>
-              <span className="dot" style={{ background: catColor ?? 'transparent' }} title={catName} />
-              <select
-                className="category-select"
-                value={book.category?.id ? String(book.category.id) : ''}
-                disabled={!catReady || catBusy}
-                onChange={(e) => changeCategory(e.target.value)}
-              >
-                <option value="">未分类</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={String(c.id)}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             <h2 className="detail-title">
               <span className={`book-type-tag ${book.bookType}`}>{BOOK_TYPE_TEXT[book.bookType]}</span>
               {book.title}
@@ -316,25 +298,44 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
               <span className="my-rating">{myRatingText}</span>
             </div>
 
-            {/* 标签 */}
-            <div className="detail-tags">
-              <span className="tags-label">标签：</span>
-              {(book.tags ?? []).map((t) => (
-                <span key={t.id} className="tag-chip removable">
-                  {t.name}
-                  <button
-                    type="button"
-                    className="chip-remove"
-                    title={`移除标签「${t.name}」`}
-                    onClick={() => removeTag(t)}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-              <button type="button" className="tag-add" title="添加标签" onClick={() => setTagOpen(true)}>
-                ＋
-              </button>
+            {/* 分类 + 标签 */}
+            <div className="detail-cats-tags">
+              <div className="detail-category">
+                <span className="tags-label">分类：</span>
+                <span className="dot" style={{ background: catColor ?? 'transparent' }} title={catName} />
+                <select
+                  className="category-select"
+                  value={book.category?.id ? String(book.category.id) : ''}
+                  disabled={!catReady || catBusy}
+                  onChange={(e) => changeCategory(e.target.value)}
+                >
+                  <option value="">未分类</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={String(c.id)}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="detail-tags">
+                <span className="tags-label">标签：</span>
+                {(book.tags ?? []).map((t) => (
+                  <span key={t.id} className="tag-chip removable">
+                    {t.name}
+                    <button
+                      type="button"
+                      className="chip-remove"
+                      title={`移除标签「${t.name}」`}
+                      onClick={() => removeTag(t)}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                <button type="button" className="tag-add" title="添加标签" onClick={() => setTagOpen(true)}>
+                  ＋
+                </button>
+              </div>
             </div>
 
             {/* 阅读状态 */}
