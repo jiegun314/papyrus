@@ -298,9 +298,11 @@ export async function listCategories() {
       name: categories.name,
       color: categories.color,
       createdAt: categories.createdAt,
-      bookCount: sql<number>`(SELECT COUNT(*) FROM books WHERE books.category_id = ${categories.id})`,
+      bookCount: count(books.id),
     })
     .from(categories)
+    .leftJoin(books, eq(books.categoryId, categories.id))
+    .groupBy(categories.id)
     .orderBy(categories.id);
   return rows.map((r) => ({
     id: r.id,
@@ -359,9 +361,11 @@ export async function listTags() {
       id: tags.id,
       name: tags.name,
       createdAt: tags.createdAt,
-      bookCount: sql<number>`(SELECT COUNT(*) FROM book_tags WHERE book_tags.tag_id = ${tags.id})`,
+      bookCount: count(bookTags.bookId),
     })
-    .from(tags);
+    .from(tags)
+    .leftJoin(bookTags, eq(bookTags.tagId, tags.id))
+    .groupBy(tags.id);
   return rows
     .map((r) => ({ id: r.id, name: r.name, bookCount: r.bookCount, createdAt: r.createdAt }))
     .sort((a, b) => (b.bookCount - a.bookCount) || a.name.localeCompare(b.name));
