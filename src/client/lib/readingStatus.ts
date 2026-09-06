@@ -14,3 +14,11 @@ export const READING_STATUS_TEXT: Record<ReadingStatus, string> = {
   read: '已读',
   abandoned: '放弃',
 };
+
+/** 阅读状态 → 图标（使用跨平台单字符 emoji，简单直观便于识别） */
+export const READING_STATUS_ICON: Record<ReadingStatus, string> = {
+  unread: '🔖',
+  reading: '📖',
+  read: '✅',
+  abandoned: '🚫',
+};

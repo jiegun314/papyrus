@@ -12,6 +12,8 @@ export interface FilterOption<V extends string | number> {
   label: string;
   /** 可选：选项代表色（如分类颜色），用于在名称前显示色点 */
   color?: string;
+  /** 可选：选项图标（如阅读状态 emoji），显示在名称前 */
+  icon?: string;
 }
 
 interface FilterSelectProps<V extends string | number> {
@@ -77,6 +79,9 @@ export function FilterSelect<V extends string | number>({
           {selected?.color ? (
             <span className="filter-select-dot" style={{ background: selected.color }} aria-hidden="true" />
           ) : null}
+          {selected?.icon ? (
+            <span className="filter-select-option-icon" aria-hidden="true">{selected.icon}</span>
+          ) : null}
           <span className="filter-select-text">{selected ? selected.label : placeholder}</span>
         </span>
         {selected ? (
@@ -123,6 +128,9 @@ export function FilterSelect<V extends string | number>({
               >
                 {o.color ? (
                   <span className="filter-select-dot" style={{ background: o.color }} aria-hidden="true" />
+                ) : null}
+                {o.icon ? (
+                  <span className="filter-select-option-icon" aria-hidden="true">{o.icon}</span>
                 ) : null}
                 <span className="filter-select-option-label">{o.label}</span>
               </li>
