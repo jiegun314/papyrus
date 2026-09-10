@@ -905,7 +905,7 @@ button.stat-card.clickable { cursor: pointer; }
 
 /* ---------- Toast ---------- */
 
-.toast-root { position: fixed; top: 20px; right: 20px; z-index: 300; display: flex; flex-direction: column; gap: 10px; }
+.toast-root { position: fixed; bottom: 84px; right: 24px; z-index: 300; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
 .toast {
   background: #2e4258;
   color: #f2efe7;
@@ -922,6 +922,11 @@ button.stat-card.clickable { cursor: pointer; }
 .toast.error { background: var(--danger); }
 .toast.success { background: var(--green); }
 @keyframes toastIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+/* 手机端：贴右下角并避免过长文本横向溢出，同时避开「回到顶部」按钮 */
+@media (max-width: 640px) {
+  .toast-root { left: 16px; right: 16px; bottom: 72px; }
+  .toast { max-width: 100%; }
+}
 
 /* ---------- 加载态 ---------- */
 
