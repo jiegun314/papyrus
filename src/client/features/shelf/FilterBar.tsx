@@ -1,11 +1,13 @@
 /**
- * features/shelf/FilterBar.tsx —— 书架筛选栏（搜索 + 分类 + 阅读状态）。
+ * features/shelf/FilterBar.tsx —— 书架筛选栏（搜索 + 分类 + 阅读状态 + 排序）。
  * 搜索输入内置 350ms 防抖与中文输入法（composition）保护；
  * 支持在聚焦状态下连续输入（React 不会销毁输入框，无需手动恢复焦点）。
+ * 排序由「字段下拉 + 方向按钮」两个控件组成，方向按钮沿用下拉触发器的视觉样式。
  */
 import { useEffect, useRef, useState } from 'react';
-import type { BookQuery, Category, ReadingStatus } from '../../../shared/types';
+import type { BookQuery, BookSortField, Category, ReadingStatus, SortDirection } from '../../../shared/types';
 import { READING_STATUS_OPTIONS, READING_STATUS_TEXT } from '../../lib/readingStatus';
+import { BOOK_SORT_OPTIONS, SORT_DIRECTION_HINT, SORT_DIRECTION_TEXT } from '../../lib/bookSort';
 import { FilterSelect } from './FilterSelect';
 
 export function FilterBar({
@@ -45,6 +47,11 @@ export function FilterBar({
     if (composingRef.current) return;
     scheduleSearch();
   };
+
+  // 排序方向：未显式选择时按「由高到低」；方向对默认排序（入库时间）同样生效
+  const sortDir: SortDirection = query.sortDir ?? 'desc';
+  const direction = SORT_DIRECTION_TEXT[sortDir];
+  const nextSortDir: SortDirection = sortDir === 'desc' ? 'asc' : 'desc';
 
   return (
     <div className="filter-bar">
@@ -99,6 +106,25 @@ export function FilterBar({
         options={READING_STATUS_OPTIONS.map((s) => ({ value: s, label: READING_STATUS_TEXT[s] }))}
         onChange={(readingStatus) => onChange({ readingStatus })}
       />
+      <FilterSelect<BookSortField>
+        placeholder="默认排序"
+        value={query.sortBy}
+        options={BOOK_SORT_OPTIONS}
+        // 选择字段时保留当前方向；清除排序时方向一并复位（回到默认排序的由高到低）
+        onChange={(sortBy) => onChange({ sortBy, sortDir: sortBy ? sortDir : undefined })}
+      />
+      <button
+        type="button"
+        className="filter-sort-dir"
+        aria-label={`排序方向：${direction.label}，点击切换为${SORT_DIRECTION_TEXT[nextSortDir].label}`}
+        title={SORT_DIRECTION_HINT[sortDir]}
+        onClick={() => onChange({ sortDir: nextSortDir })}
+      >
+        <span className="filter-select-text">{direction.label}</span>
+        <span className="filter-sort-arrow" aria-hidden="true">
+          {direction.arrow}
+        </span>
+      </button>
     </div>
   );
 }

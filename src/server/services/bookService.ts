@@ -13,7 +13,10 @@ import type { Book, BookInput, BookQuery, ReadingStatus, Stats } from '../../sha
 import { getDb, rowToBook, stringifyAuthors } from '../db/index.js';
 import { removeCover } from './cover.js';
 import { removeEbookFile } from './ebook.js';
-import { eq, and, or, like, desc, count, sql, inArray, isNotNull, ne, type SQL } from 'drizzle-orm';
+import {
+  eq, and, or, like, asc, desc, count, sql, inArray, isNotNull, ne,
+  type SQL, type SQLWrapper,
+} from 'drizzle-orm';
 import { books, categories, tags, bookTags, reviews } from '../db/schema.js';
 
 /* ------------------------------------------------------------------ */
@@ -101,10 +104,60 @@ export async function listBooks(query: BookQuery): Promise<Book[]> {
     .select()
     .from(books)
     .where(where)
-    .orderBy(desc(books.createdAt))
+    .orderBy(...buildOrderBy(query))
     .limit(limit)
     .offset(offset);
   return attachRelations(rows);
+}
+
+/**
+ * 列表排序规则。
+ *
+ * 默认（未指定 sortBy）按入库时间排序，保持历史行为不变；指定字段时：
+ *   - title   书籍名称
+ *   - author  作者名称（取 JSON 数组里的第一作者，避免把 '[' 当排序键）
+ *   - rating  豆瓣评分
+ *   - pubdate 出版时间（"2021-03" / "2021" 这类零填充字符串可直接比较）
+ *
+ * 无评分 / 无出版日期 / 无作者的书籍统一排在末尾：降序时 SQLite 本来就把 NULL 放最后，
+ * 但升序时 NULL 会跑到最前面，因此在排序键前先加一个 `IS NULL` 标志位。
+ * 同值记录按书名、再按 id 兜底，保证翻页与刷新时顺序稳定。
+ */
+function buildOrderBy(query: BookQuery): SQL[] {
+  const dir = (column: SQLWrapper): SQL =>
+    query.sortDir === 'asc' ? asc(column) : desc(column);
+
+  switch (query.sortBy) {
+    case 'title':
+      return [dir(books.title), asc(books.id)];
+    case 'author': {
+      const firstAuthor = sql`json_extract(${books.authors}, '$[0]')`;
+      return [
+        sql`${firstAuthor} IS NULL`,
+        dir(sql`coalesce(${firstAuthor}, '')`),
+        asc(books.title),
+        asc(books.id),
+      ];
+    }
+    case 'rating':
+      return [
+        sql`${books.ratingAverage} IS NULL`,
+        dir(books.ratingAverage),
+        asc(books.title),
+        asc(books.id),
+      ];
+    case 'pubdate': {
+      const pubdate = sql`NULLIF(${books.pubdate}, '')`;
+      return [
+        sql`${pubdate} IS NULL`,
+        dir(sql`coalesce(${pubdate}, '')`),
+        asc(books.title),
+        asc(books.id),
+      ];
+    }
+    default:
+      return [dir(books.createdAt), dir(books.id)];
+  }
 }
 
 /** 书籍详情（含标签、书评） */
@@ -451,8 +504,4 @@ export async function getStats(): Promise<Stats> {
     recentBooks: await attachRelations(recentRows),
   };
 }
-
-
-
-
 

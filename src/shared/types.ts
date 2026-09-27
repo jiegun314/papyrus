@@ -124,6 +124,10 @@ export interface BookQuery {
   readingStatus?: ReadingStatus;
   /** 按书籍载体类型筛选 */
   bookType?: BookType;
+  /** 排序字段；不传表示按入库时间排序 */
+  sortBy?: BookSortField;
+  /** 排序方向：asc 由低到高 / desc 由高到低（默认 desc） */
+  sortDir?: SortDirection;
   limit?: number;
   offset?: number;
   /** 仅返回有书评的书籍 */
@@ -133,6 +137,16 @@ export interface BookQuery {
   /** 仅返回已分类（非未分类）的书籍 */
   hasCategory?: boolean;
 }
+
+/** 书籍列表排序字段 */
+export type BookSortField =
+  | 'title'    // 书籍名称
+  | 'author'   // 作者名称（按第一作者）
+  | 'rating'   // 豆瓣评分
+  | 'pubdate'; // 出版时间
+
+/** 排序方向 */
+export type SortDirection = 'asc' | 'desc';
 
 /** 豆瓣搜索结果条目 */
 export interface DoubanSearchResult {

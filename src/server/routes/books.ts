@@ -17,19 +17,30 @@ import { fetchBookDetail, fetchBookByIsbn } from '../services/douban.js';
 import { fetchAmazonDetail, fetchAmazonByIsbn } from '../services/amazon.js';
 import { fetchOpenLibraryDetail, fetchOpenLibraryByIsbn } from '../services/openLibrary.js';
 import { EBOOKS_DIR } from '../db/index.js';
-import type { Book, BookInput, ReadingStatus } from '../../shared/types.js';
+import type {
+  Book,
+  BookInput,
+  BookSortField,
+  ReadingStatus,
+  SortDirection,
+} from '../../shared/types.js';
 
 export const booksRouter = Router();
 
 /* ---------- 列表 ---------- */
 
-// GET /api/books?keyword=&categoryId=&tagId=&readingStatus=&hasReview=&hasTag=&hasCategory=&limit=&offset=
+// GET /api/books?keyword=&categoryId=&tagId=&readingStatus=&bookType=&sortBy=&sortDir=&hasReview=&hasTag=&hasCategory=&limit=&offset=
 booksRouter.get('/', async (req, res) => {
   const { keyword, categoryId, tagId, readingStatus, limit, offset } = req.query;
   const bool = (v: unknown): boolean | undefined =>
     v === 'true' || v === '1' ? true : v === 'false' || v === '0' ? false : undefined;
   const isReadingStatus = (v: unknown): v is ReadingStatus =>
     v === 'unread' || v === 'reading' || v === 'read' || v === 'abandoned';
+  // 排序字段与方向（非法值一律忽略，回落到默认排序）
+  const { sortBy, sortDir } = req.query;
+  const isSortField = (v: unknown): v is BookSortField =>
+    v === 'title' || v === 'author' || v === 'rating' || v === 'pubdate';
+  const isSortDir = (v: unknown): v is SortDirection => v === 'asc' || v === 'desc';
   // 书籍载体类型：physical / ebook
   const { bookType } = req.query;
   const parsedBookType =
@@ -41,6 +52,8 @@ booksRouter.get('/', async (req, res) => {
       tagId: tagId ? Number(tagId) : undefined,
       readingStatus: isReadingStatus(readingStatus) ? readingStatus : undefined,
       bookType: parsedBookType,
+      sortBy: isSortField(sortBy) ? sortBy : undefined,
+      sortDir: isSortDir(sortDir) ? sortDir : undefined,
       hasReview: bool(req.query.hasReview),
       hasTag: bool(req.query.hasTag),
       hasCategory: bool(req.query.hasCategory),

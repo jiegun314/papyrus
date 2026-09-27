@@ -292,7 +292,9 @@ button.stat-card.clickable { cursor: pointer; }
 
 /* ---------- 自定义下拉筛选（FilterSelect） ---------- */
 .filter-select { position: relative; }
-.filter-select-trigger {
+/* 排序方向按钮与下拉触发器共用同一套外观，保证筛选栏内控件风格完全一致 */
+.filter-select-trigger,
+.filter-sort-dir {
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
@@ -310,10 +312,17 @@ button.stat-card.clickable { cursor: pointer; }
   outline: none;
   transition: border-color .16s, box-shadow .16s;
 }
-.filter-select-trigger:hover { border-color: var(--ink-faint); }
+.filter-select-trigger:hover,
+.filter-sort-dir:hover { border-color: var(--ink-faint); }
 .filter-select-trigger.is-open,
-.filter-select-trigger:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(51,104,160,.12); }
+.filter-select-trigger:focus-visible,
+.filter-sort-dir:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(51,104,160,.12); }
 .filter-select-trigger.is-active { border-color: var(--accent); }
+.filter-sort-dir {
+  /* 方向按钮只需完整包住「降序 / 升序 + 箭头」，不跟随下拉的固定最小宽度 */
+  min-width: 0;
+  justify-content: center;
+}
 .filter-select-label { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
 .filter-select-text { line-height: 1; }
 .filter-select-dot {
@@ -338,7 +347,8 @@ button.stat-card.clickable { cursor: pointer; }
   transition: color .16s, background-color .16s;
 }
 .filter-select-clear:hover { color: var(--ink); background: rgba(0,0,0,.06); }
-.filter-select-caret { color: var(--ink-faint); font-size: 12px; line-height: 1; margin-left: 2px; }
+.filter-select-caret,
+.filter-sort-arrow { color: var(--ink-faint); font-size: 12px; line-height: 1; margin-left: 2px; }
 .filter-select-menu {
   position: absolute;
   left: 0;
@@ -1485,4 +1495,3 @@ button.stat-card.clickable { cursor: pointer; }
   gap: 10px;
   border-top: 1px solid var(--line);
 }
-

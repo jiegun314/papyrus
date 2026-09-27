@@ -11,6 +11,8 @@ function toQueryString(query: BookQuery): string {
   if (query.tagId != null) params.set('tagId', String(query.tagId));
   if (query.readingStatus) params.set('readingStatus', query.readingStatus);
   if (query.bookType) params.set('bookType', query.bookType);
+  if (query.sortBy) params.set('sortBy', query.sortBy);
+  if (query.sortDir) params.set('sortDir', query.sortDir);
   if (query.hasReview) params.set('hasReview', 'true');
   if (query.hasTag) params.set('hasTag', 'true');
   if (query.hasCategory) params.set('hasCategory', 'true');
