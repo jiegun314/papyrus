@@ -383,6 +383,51 @@ button.stat-card.clickable { cursor: pointer; }
 .filter-select-option.is-selected { background: rgba(51,104,160,.12); color: var(--accent); }
 .filter-select-option-label { white-space: nowrap; }
 
+/* ---------- 排序组（字段下拉 + 方向按钮合成一个控件） ---------- */
+/* 外层容器与排序组锁定在一起不换行：窄屏换行时整组一起走，竖线不会单独落在行尾 */
+.filter-sort-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+/* 分隔「筛选」与「排序」两组，与书籍详情页「分类｜标签」的竖线语言一致 */
+.filter-divider {
+  flex: none;
+  width: 1px;
+  height: 22px;
+  background: var(--line);
+}
+/* 排序组的唯一外框；组内控件不再各自画边框 */
+.filter-sort-group {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  transition: border-color .16s, box-shadow .16s;
+}
+.filter-sort-group:hover { border-color: var(--ink-faint); }
+/* 任一段激活（选过排序字段 / 切到升序）时整组高亮，体现「两段是一个控件」 */
+.filter-sort-group.is-active { border-color: var(--accent); }
+.filter-sort-group .filter-select-trigger,
+.filter-sort-group .filter-sort-dir {
+  min-height: 38px;                    /* 40px 减去外框上下各 1px，与其它筛选控件等高 */
+  border: 0;
+  background: transparent;
+}
+.filter-sort-group > .filter-select > .filter-select-trigger { border-radius: 9px 0 0 9px; }
+.filter-sort-group > .filter-sort-dir {
+  border-left: 1px solid var(--line);  /* 两段之间的细分隔线 */
+  border-radius: 0 9px 9px 0;
+}
+/* 组内的聚焦反馈改为向内描边，避免与共享外框叠成两层边框 */
+.filter-sort-group .filter-select-trigger:focus-visible,
+.filter-sort-group .filter-sort-dir:focus-visible {
+  border: 0;
+  box-shadow: inset 0 0 0 3px rgba(51,104,160,.18);
+}
+
 .tag-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip {
   display: inline-flex;

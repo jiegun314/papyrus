@@ -52,6 +52,8 @@ export function FilterBar({
   const sortDir: SortDirection = query.sortDir ?? 'desc';
   const direction = SORT_DIRECTION_TEXT[sortDir];
   const nextSortDir: SortDirection = sortDir === 'desc' ? 'asc' : 'desc';
+  // 排序组的高亮：选过排序字段，或把方向改成了非默认的升序
+  const sortActive = query.sortBy != null || sortDir !== 'desc';
 
   return (
     <div className="filter-bar">
@@ -106,25 +108,37 @@ export function FilterBar({
         options={READING_STATUS_OPTIONS.map((s) => ({ value: s, label: READING_STATUS_TEXT[s] }))}
         onChange={(readingStatus) => onChange({ readingStatus })}
       />
-      <FilterSelect<BookSortField>
-        placeholder="默认排序"
-        value={query.sortBy}
-        options={BOOK_SORT_OPTIONS}
-        // 选择字段时保留当前方向；清除排序时方向一并复位（回到默认排序的由高到低）
-        onChange={(sortBy) => onChange({ sortBy, sortDir: sortBy ? sortDir : undefined })}
-      />
-      <button
-        type="button"
-        className="filter-sort-dir"
-        aria-label={`排序方向：${direction.label}，点击切换为${SORT_DIRECTION_TEXT[nextSortDir].label}`}
-        title={SORT_DIRECTION_HINT[sortDir]}
-        onClick={() => onChange({ sortDir: nextSortDir })}
-      >
-        <span className="filter-select-text">{direction.label}</span>
-        <span className="filter-sort-arrow" aria-hidden="true">
-          {direction.arrow}
-        </span>
-      </button>
+      {/* 排序组：字段下拉与方向按钮合成一个控件（共享外框 + 内部细分隔线）；
+          前面的竖线把「筛选」与「排序」分成两组，它与排序组锁定在一起，
+          窄屏换行时整组一起换行，竖线不会单独落在行尾。 */}
+      <div className="filter-sort-wrap">
+        <span className="filter-divider" aria-hidden="true" />
+        <div
+          className={`filter-sort-group${sortActive ? ' is-active' : ''}`}
+          role="group"
+          aria-label="排序"
+        >
+          <FilterSelect<BookSortField>
+            placeholder="默认排序"
+            value={query.sortBy}
+            options={BOOK_SORT_OPTIONS}
+            // 选择字段时保留当前方向；清除排序时方向一并复位（回到默认排序的由高到低）
+            onChange={(sortBy) => onChange({ sortBy, sortDir: sortBy ? sortDir : undefined })}
+          />
+          <button
+            type="button"
+            className="filter-sort-dir"
+            aria-label={`排序方向：${direction.label}，点击切换为${SORT_DIRECTION_TEXT[nextSortDir].label}`}
+            title={SORT_DIRECTION_HINT[sortDir]}
+            onClick={() => onChange({ sortDir: nextSortDir })}
+          >
+            <span className="filter-select-text">{direction.label}</span>
+            <span className="filter-sort-arrow" aria-hidden="true">
+              {direction.arrow}
+            </span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
