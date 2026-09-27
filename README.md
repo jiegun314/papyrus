@@ -12,6 +12,7 @@
   - 同一本书自动去重（按豆瓣 subject id / Amazon ASIN / Open Library work key）
 - **书架管理**
   - 关键字搜索（书名 / 作者 / ISBN / 出版社）、分类 / 阅读状态 / 载体类型筛选
+  - 排序：按 书籍名称 / 作者名称 / 豆瓣评分 / 出版时间 排列，可切换由高到低与由低到高；无评分 / 无出版日期的书籍固定排在末尾
   - 手动录入 / 编辑书籍全部字段；封面与电子书支持本地上传
 - **书籍载体类型**：每本书标记 **实体书 / 电子书**，书架、清单、详情、统计全程区分
 - **电子书文件**：上传 PDF / EPUB / MOBI / AZW3 / TXT 等到本地，详情页在线预览、一键下载（自动命名的「书名(作者).扩展名」）
@@ -24,7 +25,7 @@
 ## 🚀 快速开始
 
 ```bash
-# 1. 安装依赖（Node.js ≥ 20.19，建议 22+）
+# 1. 安装依赖（Node.js ≥ 24，建议 24 LTS / 26）
 npm install --cache ./.npm-cache
 
 # 2. 开发模式（Vite HMR 5173 + 后端 tsx watch 3000）
@@ -42,27 +43,36 @@ open http://localhost:5173
 
 > 📱 若要在**安卓真机上启用「扫码识别 ISBN」**（调起摄像头），需要让开发服务器以 **HTTPS** 提供页面 —— 具体见下文「HTTPS 与摄像头扫码（开发 & 正式）」。
 
-## 🏷️ v0.1.0 发布说明
+## 🏷️ v0.2.0 发布说明
 
-> 这是 Papyrus 的**第一个正式可发布版本（v0.1.0）**。下面说明该版本如何获取、安装与运行。
+> 本版聚焦**书架的日常可用性**与**运行时更新**：新增排序筛选，并把 Node.js 要求提升到 24+、全部依赖升级到最新。
+
+### 本版更新
+
+- **书架排序**：筛选栏在「阅读状态」右侧新增排序控件，可按 **书籍名称 / 作者名称 / 豆瓣评分 / 出版时间** 排序，并支持**由高到低**与**由低到高**两个方向切换；无评分、无出版日期的书籍固定排在末尾，排序在服务端完成，翻页顺序正确。
+- **运行时更新**：Node.js 要求由 `>= 20.19` 提升到 **`>= 24`**（推荐 24 LTS 或 26）。
+- **依赖升级**：React 19.2 → 19.3、Express 4.21 → 5.2、Vite 8.2 → 8.3、TypeScript 5.9 → 7.0、better-sqlite3 11.10 → 13.0、@zxing/browser 0.1.5 → 0.2.1 等，全部升到当前最新版本。
+- **安装依赖更省心**：`better-sqlite3` 13 自带全平台预编译产物（Node-API）无需本地编译；npm 11 默认不执行依赖安装脚本的策略对本项目无影响。
+
+> 历史版本（v0.1.0）见 GitHub Releases。
 
 ### 获取发布包
 
 | 产物 | 说明 |
 |---|---|
-| 源码归档 *Source code*（tar.gz / zip） | GitHub 在 `v0.1.0` 标签自动生成，**不含 `dist/`，需自行构建** |
-| 预构建包 `papyrus-v0.1.0.tar.gz` | 源码 + `dist/`（含 `npm run build` 产物），**仍需 `npm install` 安装依赖**，可跳过构建 |
+| 源码归档 *Source code*（tar.gz / zip） | GitHub 在 `v0.2.0` 标签自动生成，**不含 `dist/`，需自行构建** |
+| 预构建包 `papyrus-v0.2.0.tar.gz` | 源码 + `dist/`（含 `npm run build` 产物），**仍需 `npm install` 安装依赖**，可跳过构建 |
 
-> ⚠️ 依赖中的 `better-sqlite3` 是**原生模块（按平台编译）**，因此发布包**不包含 `node_modules`**，请在目标机器上重新 `npm install`。
+> ⚠️ 依赖中的 `better-sqlite3` 是**原生模块**，因此发布包**不包含 `node_modules`**，请在目标机器上重新 `npm install`；13.x 起该包自带全平台预编译产物（Node-API），安装时无需本地编译工具链。
 
 ### 安装与运行（生产）
 
 ```bash
 # 1. 解压（任选其一）
-tar -xzf papyrus-v0.1.0.tar.gz && cd papyrus-v0.1.0
+tar -xzf papyrus-v0.2.0.tar.gz && cd papyrus-v0.2.0
 # 或：下载 GitHub 的「Source code (tar.gz)」自动归档后解压
 
-# 2. 安装依赖（Node.js ≥ 20.19，建议 22+）
+# 2. 安装依赖（Node.js ≥ 24，建议 24 LTS / 26）
 npm install --cache ./.npm-cache
 
 # 3. 构建（源码归档必备 / 预构建包已含 dist/ 可跳过）
@@ -105,7 +115,7 @@ npm start        # node dist/server/index.js（Express 同时托管 API 与 dist
 
 | 项 | 要求 |
 |---|---|
-| Node.js | `>= 20.19`（建议 22 LTS，ESM 项目） |
+| Node.js | `>= 24`（建议 24 LTS / 26，ESM 项目） |
 | 包管理器 | npm（可加 `--cache ./.npm-cache` 走本地缓存，避免重复下载） |
 | 网络 | 导入豆瓣 / Amazon / Open Library 数据需能访问对应站点；封面下载带 Referer 防盗链 |
 | 端口 | 默认 `3000`（后端，生产同时提供 Web 资源） |
@@ -286,14 +296,14 @@ sudo certbot --nginx -d your.domain.com
 仓库未内置 Dockerfile，可按需自建（示例）：
 
 ```dockerfile
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm install --cache ./.npm-cache
 COPY . .
 RUN npm run build
 
-FROM node:22-alpine
+FROM node:24-alpine
 WORKDIR /app
 ENV NODE_ENV=production PORT=3000
 COPY --from=build /app/package*.json ./
