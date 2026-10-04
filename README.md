@@ -397,6 +397,7 @@ papyrus/
 │       │   ├── tags/                #   标签管理
 │       │   └── categories/          #   分类管理
 │       ├── lib/                     # 展示格式化与常量（bookType / readingStatus / format）
+│       ├── assets/fonts/            # 品牌标题字体 Cinzel Decorative（woff2 + OFL 授权）
 │       └── styles/style.css         # 暖纸主题（CSS 变量集中管理）
 ├── scripts/dev.mjs                  # 开发模式并行启动后端 + 前端
 ├── vite.config.ts                   # Vite 配置（root / 代理 / 输出目录）
@@ -497,6 +498,7 @@ papyrus/
 ## 🎨 定制指南
 
 - **主题配色**：`src/client/styles/style.css` 顶部的 CSS 变量 `--bg / --ink / --accent / --serif` 等，改一处全局生效
+- **左上角品牌标题**：纯文字 `Papyrus`，字体为自托管的 [Cinzel Decorative](https://fonts.google.com/specimen/Cinzel+Decorative)（古典罗马体，大写带装饰花饰；SIL OFL 1.1，授权文本见 `src/client/assets/fonts/OFL.txt`）。woff2 放在 `src/client/assets/fonts/`，由 `style.css` 顶部的 `@font-face` 引入，**不依赖外部 CDN**，局域网 / 离线同样可用；想换字体只需替换该文件与 `@font-face` 的 `src`，再改 `.brand-title` 的 `font-family`。注意 Cinzel 的小写会渲染成小型大写字母，故标题写作 `Papyrus` 更美观
 - **图标**：全部使用 [`lucide-react`](https://lucide.dev) 组件（搜索、关闭、星标、分页箭头、空状态、按钮内图标等），不再使用 emoji / 文字符号。导航与对应页标题成对使用同一图标（书架 `Library` / 标签 `Tags` / 分类 `FolderTree`），图标统一 15px、文字 14.5px 且 `line-height: 1`，保证两者等高并垂直居中。`style.css` 里 `svg.lucide` 统一了 `flex: none` + 垂直居中，容器普遍用 `inline-flex + align-items:center + gap`；需要旋转动画（加载中 / 刷新中）加 `.spin` 类；页面标题带图标用 `.view-title-icon`，按钮带图标用 `.btn-with-icon`
 - **前端功能模块**：每个页面/弹窗对应 `src/client/features/<功能>/` 下的一个目录，互不耦合
 - **默认分类**：`src/server/db/schema.ts` 的 `DEFAULT_CATEGORIES`

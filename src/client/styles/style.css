@@ -2,6 +2,19 @@
    Papyrus 样式 —— 温暖纸本风，书架主题
    ============================================================ */
 
+/* 品牌标题字体：Cinzel Decorative（古典罗马体，大写带装饰性花饰）。
+   自托管 woff2（latin 子集，约 15KB），不依赖外部 CDN，局域网 / 离线同样可用；
+   授权 SIL Open Font License 1.1，见 assets/fonts/OFL.txt。 */
+@font-face {
+  font-family: 'Cinzel Decorative';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../assets/fonts/cinzel-decorative-700.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+2000-206F, U+2122, U+2212, U+FEFF, U+FFFD;
+}
+
 :root {
   --bg: #f2efe7;
   --bg-deep: #e7e3d9;
@@ -65,13 +78,23 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+  /* 固定高度 = 原 logo 图高度，保持顶部导航高度不变（吸顶偏移 74px / 84px 依赖它） */
+  height: 53px;
   cursor: pointer;
   user-select: none;
 }
-/* 新 logo 为「图标 + Papyrus 标题」整体锁版图，直接按原标题高度展示，保持导航高度不变 */
-.brand-icon { height: 52.8px; width: auto; flex: none; object-fit: contain; }
+/* 品牌标题：纯文字 + Cinzel Decorative（古典罗马体），比原「卷轴图标 + 花体字」锁版图更清爽 */
+.brand-title {
+  font-family: 'Cinzel Decorative', var(--serif);
+  font-weight: 700;
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: .3px;
+  color: var(--ink);
+  white-space: nowrap;
+}
 @media (max-width: 640px) {
-  .brand-icon { height: 40.8px; }
+  .brand-title { font-size: 25px; }
 }
 
 .nav-tabs { position: relative; display: flex; justify-content: center; gap: 6px; flex: 0 0 auto; }

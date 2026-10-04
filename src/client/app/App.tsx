@@ -10,7 +10,6 @@ import { ShelfPage } from '../features/shelf/ShelfPage';
 import { TagsPage } from '../features/tags/TagsPage';
 import { CategoriesPage } from '../features/categories/CategoriesPage';
 import { useRefresh } from './refresh';
-import logoUrl from '../assets/logo.png';
 
 function navClass(isActive: boolean): string {
   return `nav-tab${isActive ? ' active' : ''}`;
@@ -63,7 +62,7 @@ export function App() {
       <header className="app-header">
         <div className="header-inner">
           <Link to="/" className="brand" title="返回书架">
-            <img src={logoUrl} className="brand-icon" alt="Papyrus" />
+            <span className="brand-title">Papyrus</span>
           </Link>
           <nav className="nav-tabs" ref={navRef}>
             {indicator ? (
