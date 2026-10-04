@@ -17,8 +17,10 @@ import { BookDetailModal } from '../books/BookDetailModal';
 import { BooksByFilterModal } from '../books/BooksByFilterModal';
 import { FilterBar } from './FilterBar';
 import { ServerStatus } from './ServerStatus';
+import { SnapshotPanel } from './SnapshotPanel';
 import { StatsCards } from './StatsCards';
 import { useMediaQuery, NARROW_LAYOUT_QUERY } from '../../lib/useMediaQuery';
+import { isSnapshotMode } from '../../app/snapshot';
 
 /** 每页展示的书籍数量 */
 const PAGE_SIZE = 50;
@@ -31,6 +33,8 @@ export function ShelfPage() {
   const dataVersion = useRefreshVersion();
   // 窄屏下双栏塌陷为纵向堆叠：服务器状态从左侧统计列移到所有模块最下方
   const narrow = useMediaQuery(NARROW_LAYOUT_QUERY);
+  // 离线快照模式：没有服务端，隐藏「离线快照」与「服务器」两个分组
+  const snapshot = isSnapshotMode();
 
   // 一键收起左侧统计列（PC 收起全部四组；手机收起上方三组），把空间让给书籍列表。
   // 偏好记在 localStorage，刷新后保持。
@@ -142,8 +146,10 @@ export function ShelfPage() {
           stats={stats}
           onOpenList={(title, q) => setListModal({ title, query: q })}
         >
-          {/* 宽屏：服务器状态排在「阅读状态」分组之后；窄屏改由下方底部区块渲染 */}
-          {narrow ? null : <ServerStatus />}
+          {/* 顺序：阅读状态 →【离线快照】→ 服务器。
+              窄屏下服务器面板移到底部，本模块仍留在统计列内（阅读状态下方）。 */}
+          {snapshot ? null : <SnapshotPanel />}
+          {narrow || snapshot ? null : <ServerStatus />}
         </StatsCards>
       </aside>
 
@@ -203,7 +209,8 @@ export function ShelfPage() {
       </div>
 
       {/* 窄屏（纵向堆叠）：服务器状态放在书架网格之后，即所有模块的最下面 */}
-      {narrow && (
+      {/* 窄屏：服务器面板放在所有模块最下方；离线快照里没有服务端，整块隐藏 */}
+      {narrow && !snapshot && (
         <div className="shelf-server-bottom">
           <ServerStatus />
         </div>

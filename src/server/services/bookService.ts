@@ -160,6 +160,37 @@ function buildOrderBy(query: BookQuery): SQL[] {
   }
 }
 
+/**
+ * 导出离线快照用：一次取回**全部**书籍（分页循环突破 listBooks 的 500 上限），
+ * 并把书评按 bookId 一次性挂上（避免逐本查询）。
+ */
+export async function listAllBooks(): Promise<Book[]> {
+  const PAGE = 500;
+  const all: Book[] = [];
+  for (let offset = 0; ; offset += PAGE) {
+    const batch = await listBooks({ limit: PAGE, offset });
+    all.push(...batch);
+    if (batch.length < PAGE) break;
+  }
+
+  const db = getDb();
+  const reviewRows = await db.select().from(reviews).orderBy(desc(reviews.createdAt));
+  const byBook = new Map<number, NonNullable<Book['reviews']>>();
+  for (const r of reviewRows) {
+    const list = byBook.get(r.bookId) ?? [];
+    list.push({
+      id: r.id,
+      bookId: r.bookId,
+      rating: r.rating,
+      content: r.content,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    });
+    byBook.set(r.bookId, list);
+  }
+  return all.map((b) => ({ ...b, reviews: byBook.get(b.id) ?? [] }));
+}
+
 /** 书籍详情（含标签、书评） */
 export async function getBook(id: number): Promise<Book | null> {
   const db = getDb();

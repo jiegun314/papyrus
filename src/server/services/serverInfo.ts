@@ -33,7 +33,7 @@ function readPackageJson(): PackageJson {
 }
 
 const pkg = readPackageJson();
-const APP_VERSION = pkg.version ?? '0.0.0';
+export const APP_VERSION = pkg.version ?? '0.0.0';
 
 /** 功能模块清单：当前各模块随应用一同发布，版本号即应用版本 */
 const FEATURE_MODULES: string[] = [

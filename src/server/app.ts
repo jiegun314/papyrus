@@ -12,6 +12,7 @@ import { amazonRouter } from './routes/amazon.js';
 import { openLibraryRouter } from './routes/openLibrary.js';
 import { metaRouter } from './routes/meta.js';
 import { serverInfoRouter } from './routes/serverInfo.js';
+import { exportRouter } from './routes/export.js';
 import { ROOT_DIR, COVERS_DIR, EBOOKS_DIR, getDb } from './db/index.js';
 
 export function createApp(): express.Express {
@@ -40,6 +41,8 @@ export function createApp(): express.Express {
   app.use('/api/ol', openLibraryRouter);
   // 服务器状态（IP / 端口 / 版本 / 访问统计）
   app.use('/api/server-info', serverInfoRouter);
+  // 离线快照导出（整库数据，供前端组装单文件 HTML）
+  app.use('/api/export', exportRouter);
   app.use('/api', metaRouter);
 
   // 健康检查

@@ -5,10 +5,11 @@ import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, HashRouter } from 'react-router-dom';
 import { App } from './app/App';
 import { antdTheme } from './app/antdTheme';
 import { RefreshProvider } from './app/refresh';
+import { isSnapshotMode } from './app/snapshot';
 import { ToastProvider } from './components/Toast';
 import './styles/style.css';
 
@@ -16,6 +17,12 @@ import './styles/style.css';
 window.addEventListener('unhandledrejection', (e) => {
   console.error(e.reason);
 });
+
+// 离线快照：用 file:// 打开的单文件，没有服务端路由，故改用 HashRouter；
+// 同时给 body 打上标记，由样式隐藏所有写操作入口（只读浏览）。
+const snapshot = isSnapshotMode();
+if (snapshot) document.body.classList.add('snapshot-mode');
+const Router = snapshot ? HashRouter : BrowserRouter;
 
 const rootEl = document.getElementById('root');
 if (!rootEl) throw new Error('未找到 #root 挂载点');
@@ -26,9 +33,9 @@ createRoot(rootEl).render(
     <ConfigProvider locale={zhCN} theme={antdTheme}>
       <ToastProvider>
         <RefreshProvider>
-          <BrowserRouter>
+          <Router>
             <App />
-          </BrowserRouter>
+          </Router>
         </RefreshProvider>
       </ToastProvider>
     </ConfigProvider>

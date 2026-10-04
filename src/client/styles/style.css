@@ -1918,3 +1918,53 @@ button.stat-card.clickable { cursor: pointer; }
 }
 /* 箭头相对气泡右缘的位置对齐原自研气泡（right: 15px） */
 .ant-tooltip-placement-bottomRight > .ant-tooltip-arrow { right: 15px; }
+
+/* ---------- 离线快照面板（位于「阅读状态」与「服务器」之间） ---------- */
+
+.snapshot-panel { gap: 8px; }
+.snapshot-hint {
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--ink-faint);
+}
+.snapshot-btn {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.snapshot-progress { display: flex; flex-direction: column; gap: 5px; }
+.snapshot-progress-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--bg-deep);
+  overflow: hidden;
+}
+.snapshot-progress-bar {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width .2s ease;
+}
+.snapshot-progress-text { font-size: 11px; color: var(--ink-faint); }
+.snapshot-result { font-size: 11px; color: var(--ink-faint); }
+
+/* ---------- 离线快照（只读）模式 ---------- */
+/* body.snapshot-mode 由 main.tsx 在检测到内嵌快照数据时加上。
+   快照是 file:// 打开的单文件，没有任何服务端，因此把全部写操作入口隐藏，
+   只保留浏览 / 搜索 / 详情 / 统计这些只读功能。 */
+
+.snapshot-mode .header-actions { display: none; }        /* 顶部「添加书籍」 */
+.snapshot-mode .snapshot-panel { display: none; }        /* 快照里无需再导出 */
+.snapshot-mode .server-status { display: none; }         /* 没有服务端 */
+.snapshot-mode .detail-footer { display: none; }         /* 编辑 / 重新下载封面 / 刷新 / 删除 */
+.snapshot-mode .tag-add { display: none; }               /* 添加标签 */
+.snapshot-mode .chip-remove { display: none; }           /* 移除标签 */
+.snapshot-mode .reading-seg { pointer-events: none; }    /* 阅读状态：仍显示当前值，不可改 */
+.snapshot-mode .category-select { pointer-events: none; }/* 分类：仍显示当前值，不可改 */
+.snapshot-mode .review-form { display: none; }           /* 写书评 */
+.snapshot-mode .review-item .btn-link { display: none; } /* 编辑 / 删除书评 */
+.snapshot-mode .ebook-detail-actions { display: none; }  /* 电子书 查看 / 下载 */
+.snapshot-mode .meta-item .btn-link { display: none; }   /* 标签页删除、分类页重命名 / 删除 */
+.snapshot-mode .add-form { display: none; }              /* 新增分类表单 */

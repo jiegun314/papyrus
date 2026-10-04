@@ -11,6 +11,7 @@ import { ShelfPage } from '../features/shelf/ShelfPage';
 import { TagsPage } from '../features/tags/TagsPage';
 import { CategoriesPage } from '../features/categories/CategoriesPage';
 import { useRefresh } from './refresh';
+import { isSnapshotMode } from './snapshot';
 
 function navClass(isActive: boolean): string {
   return `nav-tab${isActive ? ' active' : ''}`;
@@ -27,6 +28,8 @@ export function App() {
   const location = useLocation();
   const refresh = useRefresh();
   const [addOpen, setAddOpen] = useState(false);
+  // 离线快照为只读：隐藏「添加书籍」按钮（顶部导航与路由保持不变）
+  const snapshot = isSnapshotMode();
 
   // 导航高亮不是画在按钮上，而是一块独立的高亮块，
   // 切换路由时用 transform 平移过去，形成「滑动」效果。
@@ -86,7 +89,7 @@ export function App() {
               <span className="nav-tab-text">分类</span>
             </NavLink>
           </nav>
-          <div className="header-actions">
+          <div className="header-actions" hidden={snapshot}>
             {/* 图标按钮：圆形加号；气泡提示由 antd Tooltip 承担（深墨底、白字、8px 圆角由主题 token 对齐） */}
             {/* align.offset 把气泡与按钮的间距收到 9px，与原自研气泡一致（antd 默认 12px） */}
             <Tooltip title="添加书籍" placement="bottomRight" align={{ offset: [0, 9] }}>

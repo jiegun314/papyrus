@@ -310,3 +310,18 @@ export interface ServerInfo {
   /** 访问会话统计 */
   sessions: ServerSessionStats;
 }
+
+/* ---------- 离线快照（导出单文件 HTML） ---------- */
+
+/** 快照数据：GET /api/export/data 的响应，也是导出 HTML 里内嵌的那份数据 */
+export interface SnapshotData {
+  /** 导出时间（ISO） */
+  exportedAt: string;
+  /** 导出时的应用版本 */
+  appVersion: string;
+  /** 全部书籍（含分类、标签、书评）；导出时 coverPath 会被替换为内嵌缩略图的 data URI */
+  books: Book[];
+  categories: Category[];
+  tags: Tag[];
+  stats: Stats;
+}
