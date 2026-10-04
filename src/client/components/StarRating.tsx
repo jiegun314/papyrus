@@ -1,10 +1,14 @@
 /**
- * components/StarRating.tsx —— 五角星评分（Lucide Star 图标）。
- * 可交互（onChange）与只读（readonly）两种形态；
- * 只读时按旧版阈值（value >= i - 0.25）点亮星星，支持 4.5 等半档展示。
+ * components/StarRating.tsx —— 五角星评分。
+ *
+ * 迁移说明：交互与无障碍交给 antd 的 Rate（支持 hover 预览、键盘操作），
+ * 但星星图形仍用 Lucide `Star` —— 通过 Rate 的 `character` 传入，避免引入 @ant-design/icons。
+ * 外观（星号尺寸 / 间距 / 金色 / 未选中灰）由 `.stars` 相关样式与本组件的 size 参数控制，
+ * 与迁移前保持一致。
  */
+import { Rate } from 'antd';
+import type { CSSProperties } from 'react';
 import { Star } from 'lucide-react';
-import { useState } from 'react';
 
 export interface StarRatingProps {
   value: number; // 0-5，可为小数
@@ -16,41 +20,18 @@ export interface StarRatingProps {
 
 export function StarRating({ value, onChange, className = '', size = 18 }: StarRatingProps) {
   const interactive = Boolean(onChange);
-  const [preview, setPreview] = useState(0);
-  const [selected, setSelected] = useState(() => (interactive ? Math.round(value) : 0));
-
-  const shown = interactive ? preview || selected : Math.round(value - 0.25);
-  const starCls = `stars${interactive ? '' : ' readonly'}${className ? ` ${className}` : ''}`;
+  const cls = `stars${interactive ? '' : ' readonly'}${className ? ` ${className}` : ''}`;
 
   return (
-    <span
-      className={starCls}
-      onMouseLeave={interactive ? () => setPreview(0) : undefined}
+    <Rate
+      className={cls}
+      value={value}
+      count={5}
+      disabled={!interactive}
+      onChange={(v) => onChange?.(v)}
+      style={{ '--star-size': `${size}px` } as CSSProperties}
+      character={<Star size={size} strokeWidth={1.8} />}
       aria-label={value ? `评分 ${value}` : '未评分'}
-    >
-      {[1, 2, 3, 4, 5].map((i) => {
-        const on = i <= shown;
-        return (
-          <span
-            key={i}
-            role={interactive ? 'button' : undefined}
-            aria-hidden={interactive ? undefined : true}
-            className={`star${on ? ' on' : ''}`}
-            onMouseEnter={interactive ? () => setPreview(i) : undefined}
-            onClick={
-              interactive
-                ? () => {
-                    setSelected(i);
-                    onChange!(i);
-                  }
-                : undefined
-            }
-          >
-            {/* 实心星用 currentColor 填充，空心星保持描边 */}
-            <Star size={size} strokeWidth={1.8} fill={on ? 'currentColor' : 'none'} />
-          </span>
-        );
-      })}
-    </span>
+    />
   );
 }

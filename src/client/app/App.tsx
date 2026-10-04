@@ -1,6 +1,7 @@
 /**
  * app/App.tsx —— 应用外壳：顶部导航 + 路由 + 全局「添加书籍」弹窗。
  */
+import { Tooltip } from 'antd';
 import { FolderTree, Library, Plus, Tags } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
@@ -86,18 +87,18 @@ export function App() {
             </NavLink>
           </nav>
           <div className="header-actions">
-            {/* 图标按钮：圆形加号，悬停 / 聚焦时浮出「添加书籍」气泡 */}
-            <button
-              type="button"
-              className="btn btn-primary btn-icon-only"
-              onClick={() => setAddOpen(true)}
-              aria-label="添加书籍"
-            >
-              <Plus size={18} strokeWidth={2.4} />
-              <span className="btn-tooltip" role="tooltip">
-                添加书籍
-              </span>
-            </button>
+            {/* 图标按钮：圆形加号；气泡提示由 antd Tooltip 承担（深墨底、白字、8px 圆角由主题 token 对齐） */}
+            {/* align.offset 把气泡与按钮的间距收到 9px，与原自研气泡一致（antd 默认 12px） */}
+            <Tooltip title="添加书籍" placement="bottomRight" align={{ offset: [0, 9] }}>
+              <button
+                type="button"
+                className="btn btn-primary btn-icon-only"
+                onClick={() => setAddOpen(true)}
+                aria-label="添加书籍"
+              >
+                <Plus size={18} strokeWidth={2.4} />
+              </button>
+            </Tooltip>
           </div>
         </div>
       </header>

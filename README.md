@@ -1,6 +1,6 @@
 # 📚 Papyrus · 个人书籍管理系统
 
-> React 19 + TypeScript 的个人书架管理工具：**豆瓣 / Amazon / Open Library 三数据源元数据导入 + SQLite 本地存储 + 实体书 / 电子书载体类型 + 个人书评与阅读状态管理**，配一个暖色纸张质感的小清新 Web 界面。前端按功能模块化组织（图标统一用 **Lucide**），后端为 Express + better-sqlite3，前后端共享 `src/shared/types.ts` 类型。
+> React 19 + TypeScript 的个人书架管理工具：**豆瓣 / Amazon / Open Library 三数据源元数据导入 + SQLite 本地存储 + 实体书 / 电子书载体类型 + 个人书评与阅读状态管理**，配一个暖色纸张质感的小清新 Web 界面。前端按功能模块化组织（组件库 **Ant Design** + 图标统一 **Lucide**），后端为 Express + better-sqlite3，前后端共享 `src/shared/types.ts` 类型。
 
 ## ✨ 功能一览
 
@@ -45,29 +45,27 @@ open http://localhost:5173
 
 > 📱 若要在**安卓真机上启用「扫码识别 ISBN」**（调起摄像头），需要让开发服务器以 **HTTPS** 提供页面 —— 具体见下文「HTTPS 与摄像头扫码（开发 & 正式）」。
 
-## 🏷️ v0.2.5 发布说明
+## 🏷️ v0.2.6 发布说明
 
-> 本版聚焦**远端访问的便利性**与**界面一致性**：新增服务器状态面板与「一键精简视图」，筛选栏在手机上重排为规整网格，全站图标统一为 Lucide，顶部导航新增随路由滑动的高亮块。
+> 本版聚焦**品牌观感**与**组件库底座**：左上角标题改为纯文字 + 古典罗马体，并接入 Ant Design，把分页 / 评分 / 载体开关 / 气泡提示四个叶子组件迁到 antd，同时保证布局、颜色、图标与迁移前完全一致。
 
 ### 本版更新
 
-- **服务器状态面板（新增）**：左侧统计列新增「服务器」分组，展示**当前局域网 IP 与访问地址（点击即复制）、在线 / 今日 / 累计访问数、基本服务配置（端口 / 协议 / 已运行时长 / Node / 系统）**，以及功能模块与运行环境版本明细；启动日志同时打印 `本机访问` 与 `局域网` 地址，手机等远端设备可直接访问。
-- **访问统计接口（新增）**：`GET /api/server-info` 返回 IP、端口、运行环境、模块版本与访问统计；`POST /api/server-info/heartbeat` 接收浏览器心跳。无账号体系，故以「浏览器会话」为口径统计在线数，今日 / 累计计数落盘 `data/server-stats.json`。
-- **一键精简视图（新增）**：筛选栏最左侧「收起统计」按钮可一键隐藏左侧统计列 —— 宽屏收起全部四组（书墙由 5 列增至 6 列），窄屏收起上方三组统计（服务器信息仍保留在书墙之后）；偏好记忆在 `localStorage`。
-- **图标统一为 Lucide**：新增依赖 `lucide-react`，替换全站 emoji / 文字符号图标（搜索、关闭、星标、分页箭头、空状态、按钮内图标等），并统一「图标与文字等高居中」规则。
-- **顶部导航**：书架 / 标签 / 分类三个入口改为**真正居中**（左右两栏等宽），按钮由胶囊改为**小圆角方形**，新增随路由**平滑滑动**的蓝色高亮块，并为每个入口配上语义图标（书架 `Library` / 标签 `Tags` / 分类 `FolderTree`，与页标题一致）。
-- **添加书籍按钮**：改为圆形加号图标按钮，鼠标悬停浮出「添加书籍」气泡。
-- **手机端布局**：筛选栏由「自由换行」改为**规整两列网格**（搜索独占一行 / 两个筛选并排 / 排序独占一行），不再出现参差与溢出；左侧统计卡高度收窄（单卡 76px → 54px，统计区少占约 88px）；窄屏下服务器状态自动移到所有模块最下方。
-- **左侧统计列宽度**：改为「内容 176px + 滚动条槽位 11px」并用 `scrollbar-gutter: stable` 常驻槽位 —— 展开「模块版本 · 详情」出现滚动条时，内容宽度不再变化。
+- **品牌标题重做**：去掉原「卷轴图标 + 花体字」锁版图，改为纯文字 `Papyrus`，字体采用自托管的 **Cinzel Decorative**（古典罗马体，大写带装饰性花饰；授权 SIL OFL 1.1，授权文本随字体一起放在 `src/client/assets/fonts/OFL.txt`）。woff2 直接打进 `dist`（latin 子集仅 15KB），**不依赖外部 CDN**，局域网 / 离线同样可用；品牌区高度固定 53px，顶部导航高度（78px）与吸顶偏移（74px / 84px）不受影响。favicon 改用矢量 `favicon.svg`，`dist` 体积减少约 0.7MB。
+- **接入 Ant Design（新增依赖 `antd@6`）**：`main.tsx` 用 `ConfigProvider`（zh_CN）包住应用，新增 `src/client/app/antdTheme.ts` 把现有 CSS 变量（主色 `#3368a0` / 文字 `#2e4258` / 描边 `#dadbcf` / 圆角 / 字体 / 阴影）**一一映射为 antd design token**，此后任何 antd 组件都会自动继承现有配色。**刻意不引入 `antd/dist/reset.css`** —— 那会重置全局样式并改变现有布局；antd v6 的 CSS-in-JS 只注入组件自身样式。
+- **叶子组件迁移到 antd**：分页 `Pagination`、星级评分 `Rate`、载体类型开关 `Segmented`、悬浮提示 `Tooltip`。Modal / Select / Toast / Tabs 仍保留自研实现（它们的外观是刻意设计的，迁移收益不大）。
+- **严格保持「布局 / 颜色 / 图标」三不变**：逐项比对迁移前后实测值 —— 气泡 70×26.3、与按钮间距 9px、箭头距右缘 15px；载体开关 134×31、999px 药丸、白色滑块；星条 87×15、星光 15×15、间距 3px、未选中 `#d8d9cd`、选中金色；分页 34×34、8px 圆角、激活态蓝底白字 600 字重、省略号 15.8px —— 全部与迁移前一致，头部高度、侧栏宽度与吸顶偏移等布局不变量也均未变化。
+- **图标仍全部为 Lucide**：不引入 `@ant-design/icons`，antd 组件通过 `character`（评分星）/ `prevIcon`、`nextIcon`（分页箭头）/ `itemRender`（分页省略号）传入 Lucide 组件；分页省略号用 `itemRender` 还原为纯文本「…」，因为 antd 默认会注入自带的双箭头与省略号图标。实测书架 / 详情 / 导入 / 标签 / 分类各页面 100% 为 Lucide，`anticon` 图标元素为 0。
+- **构建体积**：主包 340KB → 660KB（gzip 104KB → 208KB），其中约三分之一来自 antd 的主题引擎本身，其余来自四个组件及其内部依赖 —— 这是引入组件库底座的体积成本，功能与外观不变。
 
-> 历史版本（v0.1.0 / v0.2.0）见 GitHub Releases。
+> 历史版本（v0.1.0 / v0.2.0 / v0.2.5）见 GitHub Releases。
 
 ### 获取发布包
 
 | 产物 | 说明 |
 |---|---|
-| 源码归档 *Source code*（tar.gz / zip） | GitHub 在 `v0.2.5` 标签自动生成，**不含 `dist/`，需自行构建** |
-| 预构建包 `papyrus-v0.2.5.tar.gz` | 源码 + `dist/`（含 `npm run build` 产物），**仍需 `npm install` 安装依赖**，可跳过构建 |
+| 源码归档 *Source code*（tar.gz / zip） | GitHub 在 `v0.2.6` 标签自动生成，**不含 `dist/`，需自行构建** |
+| 预构建包 `papyrus-v0.2.6.tar.gz` | 源码 + `dist/`（含 `npm run build` 产物），**仍需 `npm install` 安装依赖**，可跳过构建 |
 
 > ⚠️ 依赖中的 `better-sqlite3` 是**原生模块**，因此发布包**不包含 `node_modules`**，请在目标机器上重新 `npm install`；13.x 起该包自带全平台预编译产物（Node-API），安装时无需本地编译工具链。
 
@@ -75,7 +73,7 @@ open http://localhost:5173
 
 ```bash
 # 1. 解压（任选其一）
-tar -xzf papyrus-v0.2.5.tar.gz && cd papyrus-v0.2.5
+tar -xzf papyrus-v0.2.6.tar.gz && cd papyrus-v0.2.6
 # 或：下载 GitHub 的「Source code (tar.gz)」自动归档后解压
 
 # 2. 安装依赖（Node.js ≥ 24，建议 24 LTS / 26）
@@ -387,7 +385,7 @@ papyrus/
 │   └── client/                      # ★ React 19 SPA（Vite 构建）
 │       ├── index.html               # Vite 入口（root = src/client）
 │       ├── main.tsx                 # React 挂载
-│       ├── app/                     # 应用外壳（App、路由、全局刷新）
+│       ├── app/                     # 应用外壳（App、路由、全局刷新、antd 主题 antdTheme.ts）
 │       ├── api/                     # fetch 封装 + books / douban / amazon / openLibrary / meta 分域接口
 │       ├── components/              # 通用 UI：Modal / Toast / 评分 / 封面…
 │       ├── features/                # ★ 按功能模块化
@@ -498,6 +496,8 @@ papyrus/
 ## 🎨 定制指南
 
 - **主题配色**：`src/client/styles/style.css` 顶部的 CSS 变量 `--bg / --ink / --accent / --serif` 等，改一处全局生效
+- **antd 主题**：`src/client/app/antdTheme.ts` 把上面这些 CSS 变量一一映射为 antd 的 design token（主色 / 文字 / 描边 / 圆角 / 字体 / 阴影），因此在 `main.tsx` 的 `ConfigProvider` 之下，**任何 antd 组件都会自动继承现有配色**，无需逐个调样式。注意两点：① 不引入 `antd/dist/reset.css`（那会重置全局样式、改变现有布局），antd v6 的 CSS-in-JS 只注入组件自身样式；② **图标一律继续用 Lucide**，不引入 `@ant-design/icons` —— antd 组件里通过 `character`（评分）、`prevIcon`/`nextIcon`（分页）、`itemRender`（分页省略号）等属性传入 Lucide 组件
+- **已迁移到 antd 的组件**：分页 `Pagination`、星级评分 `Rate`（星星仍是 Lucide `Star`）、载体类型开关 `Segmented`、悬浮提示 `Tooltip`。其余（Modal / Select / Toast / Tabs / 表单控件）仍为自研实现 —— 它们的外观是刻意设计的，迁移收益不大
 - **左上角品牌标题**：纯文字 `Papyrus`，字体为自托管的 [Cinzel Decorative](https://fonts.google.com/specimen/Cinzel+Decorative)（古典罗马体，大写带装饰花饰；SIL OFL 1.1，授权文本见 `src/client/assets/fonts/OFL.txt`）。woff2 放在 `src/client/assets/fonts/`，由 `style.css` 顶部的 `@font-face` 引入，**不依赖外部 CDN**，局域网 / 离线同样可用；想换字体只需替换该文件与 `@font-face` 的 `src`，再改 `.brand-title` 的 `font-family`。注意 Cinzel 的小写会渲染成小型大写字母，故标题写作 `Papyrus` 更美观
 - **图标**：全部使用 [`lucide-react`](https://lucide.dev) 组件（搜索、关闭、星标、分页箭头、空状态、按钮内图标等），不再使用 emoji / 文字符号。导航与对应页标题成对使用同一图标（书架 `Library` / 标签 `Tags` / 分类 `FolderTree`），图标统一 15px、文字 14.5px 且 `line-height: 1`，保证两者等高并垂直居中。`style.css` 里 `svg.lucide` 统一了 `flex: none` + 垂直居中，容器普遍用 `inline-flex + align-items:center + gap`；需要旋转动画（加载中 / 刷新中）加 `.spin` 类；页面标题带图标用 `.view-title-icon`，按钮带图标用 `.btn-with-icon`
 - **前端功能模块**：每个页面/弹窗对应 `src/client/features/<功能>/` 下的一个目录，互不耦合

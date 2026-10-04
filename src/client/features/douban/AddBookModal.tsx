@@ -2,6 +2,7 @@
  * features/douban/AddBookModal.tsx —— 添加书籍弹窗。
  * Tab ①：从豆瓣导入；Tab ②：Amazon 导入（英文书）；Tab ③：Open Library 导入；Tab ④：手动录入。
  */
+import { Segmented } from 'antd';
 import { BookOpen, Camera, Inbox, SearchX, Star, TriangleAlert } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import type { AmazonSearchResult, BookType, Category, DoubanSearchResult, OpenLibrarySearchResult } from '../../../shared/types';
@@ -149,20 +150,15 @@ function BookTypeSwitch({
   onChange: (t: BookType) => void;
 }) {
   return (
-    <span className="book-type-switch" role="group" aria-label="载体类型">
-      <span className={`switch-thumb ${value}`} />
-      {BOOK_TYPE_OPTIONS.map((t) => (
-        <button
-          key={t}
-          type="button"
-          className={value === t ? 'active' : ''}
-          aria-pressed={value === t}
-          onClick={() => onChange(t)}
-        >
-          {BOOK_TYPE_TEXT[t]}
-        </button>
-      ))}
-    </span>
+    /* 用 antd Segmented 承担「载体类型」二选一开关；
+       药丸外形 / 白色滑块 / 文字色由 antdTheme 的 Segmented token 与 .book-type-switch 样式对齐 */
+    <Segmented
+      className="book-type-switch"
+      aria-label="载体类型"
+      value={value}
+      onChange={(v) => onChange(v as BookType)}
+      options={BOOK_TYPE_OPTIONS.map((t) => ({ label: BOOK_TYPE_TEXT[t], value: t }))}
+    />
   );
 }
 /* ============================================================

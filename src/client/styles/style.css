@@ -179,46 +179,6 @@ body {
   padding: 0;
   border-radius: 50%;
 }
-.btn-tooltip {
-  position: absolute;
-  top: calc(100% + 9px);
-  right: 0;
-  z-index: 60;
-  padding: 5px 10px;
-  border-radius: 8px;
-  background: var(--ink);
-  color: #fff;
-  font-family: var(--sans);
-  font-size: 12.5px;
-  font-weight: 400;
-  line-height: 1.3;
-  white-space: nowrap;
-  box-shadow: var(--shadow);
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-4px);
-  transition: opacity .16s, transform .16s, visibility .16s;
-  pointer-events: none;
-}
-/* 气泡上方的小三角，指向按钮 */
-.btn-tooltip::before {
-  content: '';
-  position: absolute;
-  top: -4px;
-  right: 15px;
-  width: 8px;
-  height: 8px;
-  background: var(--ink);
-  transform: rotate(45deg);
-  border-radius: 1px;
-}
-.btn-icon-only:hover .btn-tooltip,
-.btn-icon-only:focus-visible .btn-tooltip {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-}
-
 /* ---------- Lucide 图标通用规则 ----------
    Lucide 默认渲染 <svg class="lucide ...">，其 display 为 inline、按文字基线对齐，
    容易与文字错位。统一改为 flex 项 / 垂直居中，具体容器再按需加 gap。 */
@@ -780,45 +740,82 @@ button.stat-card.clickable { cursor: pointer; }
   font-size: 13px;
   color: var(--ink-soft);
 }
-.pagination {
+/* 分页：改用 antd Pagination，外观对齐原自研按钮
+   （34px 方形 · 8px 圆角 · --line 描边 · 白底 · 激活蓝底白字 · 6px 间距 · 禁用 45% 透明）。
+   注意 antd v6 的上下页图标是 <li> 的直接子元素（不再有 .ant-pagination-item-link 包裹）。 */
+.pagination.ant-pagination {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   justify-content: flex-end;        /* 导航按钮位于右侧 */
   gap: 6px;
 }
-.page-btn {
+.pagination.ant-pagination .ant-pagination-item,
+.pagination.ant-pagination .ant-pagination-prev,
+.pagination.ant-pagination .ant-pagination-next {
   min-width: 34px;
   height: 34px;
-  padding: 0 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  margin-inline-end: 0;             /* 间距由容器 gap 提供 */
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--card);
+  transition: border-color .16s, color .16s;
+}
+.pagination.ant-pagination .ant-pagination-prev,
+.pagination.ant-pagination .ant-pagination-next {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-soft);
+}
+.pagination.ant-pagination .ant-pagination-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.pagination.ant-pagination .ant-pagination-item a {
   color: var(--ink-soft);
   font-size: 14px;
-  font-family: var(--sans);
-  line-height: 1;
-  cursor: pointer;
-  transition: border-color .16s, color .16s, background-color .16s;
+  transition: color .16s;
 }
-.page-btn:hover:not(:disabled):not(.active) {
+.pagination.ant-pagination .ant-pagination-item:hover,
+.pagination.ant-pagination .ant-pagination-prev:not(.ant-pagination-disabled):hover,
+.pagination.ant-pagination .ant-pagination-next:not(.ant-pagination-disabled):hover {
   border-color: var(--accent);
   color: var(--accent);
 }
-.page-btn.active {
+.pagination.ant-pagination .ant-pagination-item:hover a { color: var(--accent); }
+.pagination.ant-pagination .ant-pagination-item-active {
   background: var(--accent);
   border-color: var(--accent);
+}
+.pagination.ant-pagination .ant-pagination-item-active a {
   color: #fff;
   font-weight: 600;
-  cursor: default;
 }
-.page-btn:disabled { opacity: .45; cursor: default; }
-.page-arrow { font-size: 16px; }
-.page-ellipsis { color: var(--ink-faint); padding: 0 2px; }
-
+.pagination.ant-pagination .ant-pagination-item-active:hover { border-color: var(--accent); }
+.pagination.ant-pagination .ant-pagination-item-active:hover a { color: #fff; }
+.pagination.ant-pagination .ant-pagination-disabled,
+.pagination.ant-pagination .ant-pagination-disabled:hover {
+  opacity: .45;
+  border-color: var(--line);
+  color: var(--ink-soft);
+}
+/* 省略号：还原为原来的文字「…」（尺寸/颜色与迁移前一致） */
+.pagination.ant-pagination .ant-pagination-jump-prev,
+.pagination.ant-pagination .ant-pagination-jump-next {
+  min-width: 15.8px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-inline-end: 0;
+  border: none;
+  background: transparent;
+  color: var(--ink-faint);
+}
+.pagination.ant-pagination .page-ellipsis { color: var(--ink-faint); padding: 0 2px; }
 @media (max-width: 640px) {
   .pagination-bar { justify-content: center; }
   .pagination { justify-content: center; }
@@ -1251,12 +1248,31 @@ button.stat-card.clickable { cursor: pointer; }
 
 
 /* 星级评分 */
-.stars { display: inline-flex; align-items: center; gap: 3px; line-height: 1; }
-.stars .star { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: #d8d9cd; transition: transform .12s, color .12s; }
-.stars .star.on { color: var(--gold); }
-.stars .star:hover { transform: scale(1.2); }
-.stars.readonly .star { cursor: default; }
-.stars.readonly .star:hover { transform: none; }
+/* 星级评分：改用 antd Rate，这里把外观对齐原自研星星
+   （5 颗 15px 星 · 间距 3px · 未选中 #d8d9cd · 选中金色；图形仍是 Lucide Star） */
+.stars.ant-rate {
+  --star-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: var(--star-size);   /* 行高精确等于星星尺寸，避免 antd 行盒多出 2px */
+  line-height: 1;
+  font-size: var(--star-size);
+  color: #d8d9cd;
+}
+/* li 改为 flex，消除 inline 盒带来的行距，星条高度精确等于星星高度（15px） */
+.stars.ant-rate .ant-rate-star {
+  display: flex;
+  align-items: center;
+  height: var(--star-size);
+  line-height: 1;
+  margin-inline-end: 0;
+}
+.stars.ant-rate .ant-rate-star-first,
+.stars.ant-rate .ant-rate-star-second { display: inline-flex; align-items: center; }
+/* 悬浮时星星放大，保留原交互反馈 */
+.stars.ant-rate:not(.ant-rate-disabled) .ant-rate-star:hover svg { transform: scale(1.2); }
+.stars.ant-rate svg { transition: transform .12s; }
 
 /* 书评列表 */
 .review-list { display: flex; flex-direction: column; gap: 12px; }
@@ -1622,56 +1638,30 @@ button.stat-card.clickable { cursor: pointer; }
   align-items: center;
   gap: 12px;
 }
-.book-type-switch {
-  position: relative;
-  display: inline-flex;
-  align-items: stretch;
-  background: var(--bg-deep);
+/* 载体类型开关：改用 antd Segmented，这里把外观对齐原自研样式
+   （药丸外壳 + 1px 描边 + 2px 内边距；项 25px 高 / 12px / 600 字重；白底滑块 + 999px 圆角） */
+.book-type-switch.ant-segmented {
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 2px;
-}
-.book-type-switch .switch-thumb {
-  position: absolute;
-  top: 2px;
-  bottom: 2px;
-  left: 2px;
-  width: calc(50% - 2px);
-  border-radius: 999px;
-  background: var(--card);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, .14);
-  transition: transform .18s ease;
-}
-.book-type-switch .switch-thumb.ebook { transform: translateX(100%); }
-.book-type-switch button {
-  position: relative;
-  z-index: 1;
-  flex: 1 1 0;
-  border: none;
-  background: transparent;
-  padding: 4px 14px;
-  font-family: var(--sans);
+  background: var(--bg-deep);
   font-size: 12px;
   font-weight: 600;
-  color: var(--ink-soft);
-  cursor: pointer;
-  white-space: nowrap;
+}
+.book-type-switch.ant-segmented .ant-segmented-item,
+.book-type-switch.ant-segmented .ant-segmented-thumb {
   border-radius: 999px;
 }
-.book-type-switch button.active { color: var(--ink); }
-
-/* 简介 / 备注 / 书评 */
-.summary-text { margin-top: 6px; font-size: 14px; color: var(--ink-soft); line-height: 1.8; white-space: pre-wrap; }
-.no-reviews { padding: 16px 0; color: var(--ink-faint); font-size: 13.5px; text-align: center; }
-.review-form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 12px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--bg);
+.book-type-switch.ant-segmented .ant-segmented-item { color: var(--ink-soft); }
+.book-type-switch.ant-segmented .ant-segmented-item-selected,
+.book-type-switch.ant-segmented .ant-segmented-thumb {
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .14);   /* 对齐原自研滑块的投影 */
+}
+.book-type-switch.ant-segmented .ant-segmented-item-label {
+  min-height: 25px;
+  line-height: 25px;
+  padding: 0 14px;
 }
 .review-form .review-stars { font-size: 13px; color: var(--ink-soft); }
 .review-form textarea {
@@ -1914,3 +1904,17 @@ button.stat-card.clickable { cursor: pointer; }
   gap: 10px;
   border-top: 1px solid var(--line);
 }
+
+/* ---------- antd 组件外观对齐（保持与手写界面一致） ---------- */
+
+/* Tooltip：内边距 / 行高对齐原自研气泡（70 × 26.3，箭头距右缘 15px）。
+   注意 antd v6 的 Tooltip 已无 .ant-tooltip-inner，正文容器是 .ant-tooltip-container。 */
+.ant-tooltip .ant-tooltip-container {
+  padding: 5px 10px;
+  min-height: 0;
+  font-size: 12.5px;
+  line-height: 1.3;
+  box-shadow: var(--shadow);
+}
+/* 箭头相对气泡右缘的位置对齐原自研气泡（right: 15px） */
+.ant-tooltip-placement-bottomRight > .ant-tooltip-arrow { right: 15px; }
