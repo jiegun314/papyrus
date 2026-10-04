@@ -5,16 +5,20 @@
  */
 import { createApp } from './app.js';
 import { closeDb, DB_PATH, ROOT_DIR } from './db/index.js';
-
-const PORT = Number(process.env.PORT) || 3000;
+import { PORT } from './config.js';
+import { accessUrls } from './services/serverInfo.js';
 
 const app = createApp();
 
 const server = app.listen(PORT, () => {
+  // 局域网访问地址：方便远端设备（手机 / 平板 / 另一台电脑）直接复制打开
+  const urls = accessUrls(PORT);
   console.log('┌──────────────────────────────────────────────────────┐');
   console.log('│  📚  Papyrus 个人书籍管理系统已启动                    │');
   console.log('└──────────────────────────────────────────────────────┘');
-  console.log(`    Web 界面 : http://localhost:${PORT}`);
+  console.log(`    本机访问 : http://localhost:${PORT}`);
+  console.log(`    局域网   : ${urls[0]}`);
+  for (const url of urls.slice(1)) console.log(`               ${url}`);
   console.log(`    数据库   : ${DB_PATH}`);
   console.log(`    数据目录 : ${ROOT_DIR}`);
 });

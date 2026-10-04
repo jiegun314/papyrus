@@ -7,6 +7,8 @@ data/*.db-wal
 data/*.db-shm
 data/covers/
 data/ebooks/
+# 运行时访问统计（服务器状态面板的累计访问数）
+data/server-stats.json
 .DS_Store
 *.log
 

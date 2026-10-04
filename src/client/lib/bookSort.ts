@@ -13,10 +13,10 @@ export const BOOK_SORT_OPTIONS: { value: BookSortField; label: string }[] = [
   { value: 'pubdate', label: '出版时间' },
 ];
 
-/** 排序方向 → 控件上的箭头与短文案 */
-export const SORT_DIRECTION_TEXT: Record<SortDirection, { label: string; arrow: string }> = {
-  desc: { label: '降序', arrow: '↓' },
-  asc: { label: '升序', arrow: '↑' },
+/** 排序方向 → 控件上的短文案（箭头图标由 FilterBar 用 Lucide 渲染） */
+export const SORT_DIRECTION_TEXT: Record<SortDirection, { label: string }> = {
+  desc: { label: '降序' },
+  asc: { label: '升序' },
 };
 
 /** 排序方向 → 悬浮提示（说清「由高到低 / 由低到高」以及点击后的效果） */

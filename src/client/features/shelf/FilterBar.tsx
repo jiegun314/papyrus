@@ -4,6 +4,7 @@
  * 支持在聚焦状态下连续输入（React 不会销毁输入框，无需手动恢复焦点）。
  * 排序由「字段下拉 + 方向按钮」两个控件组成，方向按钮沿用下拉触发器的视觉样式。
  */
+import { ArrowDown, ArrowUp, PanelLeftClose, PanelLeftOpen, Search, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { BookQuery, BookSortField, Category, ReadingStatus, SortDirection } from '../../../shared/types';
 import { READING_STATUS_OPTIONS, READING_STATUS_TEXT } from '../../lib/readingStatus';
@@ -14,10 +15,16 @@ export function FilterBar({
   categories,
   query,
   onChange,
+  sideHidden,
+  onToggleSide,
 }: {
   categories: Category[];
   query: BookQuery;
   onChange: (patch: Partial<BookQuery>) => void;
+  /** 左侧统计列当前是否已收起 */
+  sideHidden: boolean;
+  /** 一键收起 / 展开左侧统计列 */
+  onToggleSide: () => void;
 }) {
   const [text, setText] = useState(query.keyword ?? '');
   const textRef = useRef(text);
@@ -57,44 +64,63 @@ export function FilterBar({
 
   return (
     <div className="filter-bar">
-      <div className="search-box">
-        <span className="search-icon">🔍</span>
-        <input
-          type="text"
-          placeholder="搜索书名 / 作者 / ISBN / 出版社…"
-          value={text}
-          onChange={(e) => handleInput(e.target.value)}
-          onCompositionStart={() => {
-            composingRef.current = true;
-            window.clearTimeout(timerRef.current);
-          }}
-          onCompositionEnd={() => {
-            composingRef.current = false;
-            scheduleSearch();
-          }}
-          onKeyDown={(e) => {
-            if (composingRef.current) return;
-            if (e.key === 'Enter') {
-              e.preventDefault();
+      {/* 一键收起统计列 + 搜索：窄屏下两者各自独占一行，宽屏下并排 */}
+      <div className="filter-search-row">
+        <button
+          type="button"
+          className={`side-toggle${sideHidden ? ' is-hidden' : ''}`}
+          aria-expanded={!sideHidden}
+          aria-controls="shelf-side"
+          aria-label={sideHidden ? '展开左侧统计列' : '收起左侧统计列'}
+          title={sideHidden ? '展开统计列，恢复藏书 / 载体 / 阅读状态 / 服务器' : '收起统计列，让书籍列表占满整屏'}
+          onClick={onToggleSide}
+        >
+          <span className="side-toggle-icon" aria-hidden="true">
+            {sideHidden ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          </span>
+          <span className="side-toggle-text">{sideHidden ? '展开统计' : '收起统计'}</span>
+        </button>
+        <div className="search-box">
+          <span className="search-icon" aria-hidden="true">
+            <Search size={16} />
+          </span>
+          <input
+            type="text"
+            placeholder="搜索书名 / 作者 / ISBN / 出版社…"
+            value={text}
+            onChange={(e) => handleInput(e.target.value)}
+            onCompositionStart={() => {
+              composingRef.current = true;
               window.clearTimeout(timerRef.current);
-              commitSearch();
-            } else if (e.key === 'Escape' && text) {
-              clearSearch();
-            }
-          }}
-        />
-        {text ? (
-          <button
-            type="button"
-            className="search-clear"
-            aria-label="清空搜索"
-            title="清空搜索"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={clearSearch}
-          >
-            ✕
-          </button>
-        ) : null}
+            }}
+            onCompositionEnd={() => {
+              composingRef.current = false;
+              scheduleSearch();
+            }}
+            onKeyDown={(e) => {
+              if (composingRef.current) return;
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                window.clearTimeout(timerRef.current);
+                commitSearch();
+              } else if (e.key === 'Escape' && text) {
+                clearSearch();
+              }
+            }}
+          />
+          {text ? (
+            <button
+              type="button"
+              className="search-clear"
+              aria-label="清空搜索"
+              title="清空搜索"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={clearSearch}
+            >
+              <X size={14} />
+            </button>
+          ) : null}
+        </div>
       </div>
       <FilterSelect<number>
         placeholder="全部分类"
@@ -134,7 +160,7 @@ export function FilterBar({
           >
             <span className="filter-select-text">{direction.label}</span>
             <span className="filter-sort-arrow" aria-hidden="true">
-              {direction.arrow}
+              {sortDir === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
             </span>
           </button>
         </div>

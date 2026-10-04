@@ -1,6 +1,7 @@
 /**
  * features/books/BookCard.tsx —— 书架网格中的单本书卡片。
  */
+import { Star } from 'lucide-react';
 import type { Book } from '../../../shared/types';
 import { Cover } from '../../components/Cover';
 import { authorText, fmtRating } from '../../lib/format';
@@ -36,7 +37,7 @@ export function BookCard({ book, onOpen }: { book: Book; onOpen: (id: number) =>
         <div className="book-rating">
           {book.ratingAverage != null ? (
             <>
-              ★ {fmtRating(book.ratingAverage)}
+              <Star size={13} fill="currentColor" strokeWidth={0} /> {fmtRating(book.ratingAverage)}
               {book.ratingCount ? <span className="votes">{book.ratingCount} 人评价</span> : null}
             </>
           ) : null}

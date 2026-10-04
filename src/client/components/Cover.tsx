@@ -2,6 +2,7 @@
  * components/Cover.tsx —— 书籍封面占位组件。
  * 有图则渲染 <img>（可叠加 children 角标）；无图 / 加载失败回退到占位符。
  */
+import { BookOpen } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 
 export interface CoverProps {
@@ -24,7 +25,11 @@ export function Cover({
   onClick,
   title,
   onImageError,
-  fallback = <span className="cover-fallback">📖</span>,
+  fallback = (
+    <span className="cover-fallback">
+      <BookOpen size={32} strokeWidth={1.5} />
+    </span>
+  ),
   children,
 }: CoverProps) {
   const [failed, setFailed] = useState(false);

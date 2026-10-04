@@ -2,6 +2,7 @@
  * components/Modal.tsx —— 通用弹窗（Portal 渲染到 body）。
  * 行为与旧版一致：点遮罩/Esc 关闭；多个弹窗叠加时 Esc 只关闭最上层。
  */
+import { X } from 'lucide-react';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -55,7 +56,7 @@ export function Modal({
         <div className="modal-header">
           <h2>{title}</h2>
           <button type="button" className="modal-close" title="关闭" onClick={onClose} aria-label="关闭">
-            ×
+            <X size={18} />
           </button>
         </div>
         <div className="modal-body">{children}</div>

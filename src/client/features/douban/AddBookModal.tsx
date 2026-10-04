@@ -2,7 +2,8 @@
  * features/douban/AddBookModal.tsx —— 添加书籍弹窗。
  * Tab ①：从豆瓣导入；Tab ②：Amazon 导入（英文书）；Tab ③：Open Library 导入；Tab ④：手动录入。
  */
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { BookOpen, Camera, Inbox, SearchX, Star, TriangleAlert } from 'lucide-react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import type { AmazonSearchResult, BookType, Category, DoubanSearchResult, OpenLibrarySearchResult } from '../../../shared/types';
 import { createBook } from '../../api/books';
 import { doubanPreview, doubanSave, doubanSearch } from '../../api/douban';
@@ -24,6 +25,13 @@ import {
 } from '../books/BookForm';
 
 type TabKey = 'douban' | 'amazon' | 'openlibrary' | 'manual';
+
+/** 搜索反馈类型 → 空状态图标（提示 / 无结果 / 出错） */
+function feedbackIcon(kind: 'hint' | 'empty' | 'error' | 'none'): ReactNode {
+  if (kind === 'hint') return <SearchX size={36} strokeWidth={1.5} />;
+  if (kind === 'empty') return <Inbox size={36} strokeWidth={1.5} />;
+  return <TriangleAlert size={36} strokeWidth={1.5} />;
+}
 
 /**
  * 扫码弹窗按需加载：@zxing/browser + @zxing/library 体积较大，若在顶层静态 import，
@@ -263,18 +271,18 @@ function DoubanPanel({ onSaved, bookType }: { onSaved: () => void; bookType: Boo
         </button>
         <button
           type="button"
-          className="btn"
+          className="btn btn-with-icon"
           title="用摄像头扫描书籍条码，自动识别 ISBN"
           onClick={() => setScanning(true)}
         >
-          📷 扫码
+          <Camera size={15} /> 扫码
         </button>
       </div>
 
       <div className="douban-results">
         {searching ? <Loading text="正在向豆瓣请求…" /> : null}
         {!searching && (feedback.kind === 'hint' || feedback.kind === 'empty' || feedback.kind === 'error') ? (
-          <EmptyState icon={feedback.kind === 'hint' ? '🔍' : feedback.kind === 'empty' ? '📭' : '⚠️'} compact>
+          <EmptyState icon={feedbackIcon(feedback.kind)} compact>
             <p>{feedback.text}</p>
           </EmptyState>
         ) : null}
@@ -350,14 +358,14 @@ function PreviewPanel({ detail, item }: { detail: Record<string, unknown>; item:
   return (
     <div className="preview-panel">
       <div className="pv-cover">
-        {imgUrl ? <PreviewImage src={imgUrl} alt={title} /> : '📖'}
+        {imgUrl ? <PreviewImage src={imgUrl} alt={title} /> : <BookOpen size={30} strokeWidth={1.5} />}
       </div>
       <div className="pv-info">
         <div className="pv-title">{title}</div>
         <div className="pv-meta">{metaParts.join(' · ')}</div>
         {ratingAvg != null ? (
           <div className="pv-rating">
-            ★ {fmtRating(ratingAvg)}
+            <Star size={13} fill="currentColor" strokeWidth={0} /> {fmtRating(ratingAvg)}
             {ratingCount ? `（${ratingCount} 人评价）` : ''}
           </div>
         ) : null}
@@ -372,7 +380,7 @@ function PreviewPanel({ detail, item }: { detail: Record<string, unknown>; item:
 
 function PreviewImage({ src, alt }: { src: string; alt: string }) {
   const [failed, setFailed] = useState(false);
-  if (failed) return <>📖</>;
+  if (failed) return <BookOpen size={30} strokeWidth={1.5} />;
   return <img src={src} alt={alt} onError={() => setFailed(true)} />;
 }
 /* ============================================================
@@ -461,18 +469,18 @@ function AmazonPanel({ onSaved, bookType }: { onSaved: () => void; bookType: Boo
         </button>
         <button
           type="button"
-          className="btn"
+          className="btn btn-with-icon"
           title="用摄像头扫描书籍条码，自动识别 ISBN"
           onClick={() => setScanning(true)}
         >
-          📷 扫码
+          <Camera size={15} /> 扫码
         </button>
       </div>
 
       <div className="douban-results">
         {searching ? <Loading text="正在向 Amazon 请求…" /> : null}
         {!searching && (feedback.kind === 'hint' || feedback.kind === 'empty' || feedback.kind === 'error') ? (
-          <EmptyState icon={feedback.kind === 'hint' ? '🔍' : feedback.kind === 'empty' ? '📭' : '⚠️'} compact>
+          <EmptyState icon={feedbackIcon(feedback.kind)} compact>
             <p>{feedback.text}</p>
           </EmptyState>
         ) : null}
@@ -492,7 +500,12 @@ function AmazonPanel({ onSaved, bookType }: { onSaved: () => void; bookType: Boo
                     {item.authors ?? ''}
                     {item.price ? ` · ${item.price}` : ''}
                     {item.pubdate ? ` · ${item.pubdate}` : ''}
-                    {item.rating != null ? ` · ★ ${fmtRating(item.rating)}` : ''}
+                    {item.rating != null ? (
+                      <>
+                        {' · '}
+                        <Star size={11} fill="currentColor" strokeWidth={0} /> {fmtRating(item.rating)}
+                      </>
+                    ) : null}
                   </div>
                 </div>
                 <div className="db-actions">
@@ -545,14 +558,14 @@ function AmazonPreviewPanel({ detail, item }: { detail: Record<string, unknown>;
   return (
     <div className="preview-panel">
       <div className="pv-cover">
-        {imgUrl ? <PreviewImage src={imgUrl} alt={title} /> : '📖'}
+        {imgUrl ? <PreviewImage src={imgUrl} alt={title} /> : <BookOpen size={30} strokeWidth={1.5} />}
       </div>
       <div className="pv-info">
         <div className="pv-title">{title}</div>
         <div className="pv-meta">{metaParts.join(' · ')}</div>
         {ratingAvg != null ? (
           <div className="pv-rating">
-            ★ {fmtRating(ratingAvg)}
+            <Star size={13} fill="currentColor" strokeWidth={0} /> {fmtRating(ratingAvg)}
             {ratingCount ? `（${ratingCount} 人评价）` : ''}
           </div>
         ) : null}
@@ -648,18 +661,18 @@ function OpenLibraryPanel({ onSaved, bookType }: { onSaved: () => void; bookType
         </button>
         <button
           type="button"
-          className="btn"
+          className="btn btn-with-icon"
           title="用摄像头扫描书籍条码，自动识别 ISBN"
           onClick={() => setScanning(true)}
         >
-          📷 扫码
+          <Camera size={15} /> 扫码
         </button>
       </div>
 
       <div className="douban-results">
         {searching ? <Loading text="正在向 Open Library 请求…" /> : null}
         {!searching && (feedback.kind === 'hint' || feedback.kind === 'empty' || feedback.kind === 'error') ? (
-          <EmptyState icon={feedback.kind === 'hint' ? '🔍' : feedback.kind === 'empty' ? '📭' : '⚠️'} compact>
+          <EmptyState icon={feedbackIcon(feedback.kind)} compact>
             <p>{feedback.text}</p>
           </EmptyState>
         ) : null}
@@ -685,7 +698,12 @@ function OpenLibraryPanel({ onSaved, bookType }: { onSaved: () => void; bookType
                     {item.firstPublishYear ? ` · ${item.firstPublishYear}` : ''}
                     {item.isbn ? ` · ISBN ${item.isbn}` : ''}
                     {item.pages ? ` · ${item.pages} 页` : ''}
-                    {item.ratingAverage != null ? ` · ★ ${fmtRating(item.ratingAverage)}` : ''}
+                    {item.ratingAverage != null ? (
+                      <>
+                        {' · '}
+                        <Star size={11} fill="currentColor" strokeWidth={0} /> {fmtRating(item.ratingAverage)}
+                      </>
+                    ) : null}
                   </div>
                 </div>
                 <div className="db-actions">
@@ -743,14 +761,14 @@ function OpenLibraryPreviewPanel({ detail, item }: { detail: Record<string, unkn
   return (
     <div className="preview-panel">
       <div className="pv-cover">
-        {imgUrl ? <PreviewImage src={imgUrl} alt={title} /> : '📖'}
+        {imgUrl ? <PreviewImage src={imgUrl} alt={title} /> : <BookOpen size={30} strokeWidth={1.5} />}
       </div>
       <div className="pv-info">
         <div className="pv-title">{title}</div>
         <div className="pv-meta">{metaParts.join(' · ')}</div>
         {ratingAvg != null ? (
           <div className="pv-rating">
-            ★ {fmtRating(ratingAvg)}
+            <Star size={13} fill="currentColor" strokeWidth={0} /> {fmtRating(ratingAvg)}
             {ratingCount ? `（${ratingCount} 人评价）` : ''}
           </div>
         ) : null}

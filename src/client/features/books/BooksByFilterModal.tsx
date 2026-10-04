@@ -2,6 +2,7 @@
  * features/books/BooksByFilterModal.tsx —— 某筛选条件下的书籍清单弹窗。
  * 书名可进入详情；详情内数据变更后自动刷新清单。
  */
+import { TriangleAlert } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import type { Book, BookQuery } from '../../../shared/types';
 import { listBooks } from '../../api/books';
@@ -49,7 +50,7 @@ export function BooksByFilterModal({
     <>
       <Modal open onClose={onClose} title={title} size="medium">
         {error ? (
-          <EmptyState icon="⚠️" compact>
+          <EmptyState icon={<TriangleAlert size={36} strokeWidth={1.5} />} compact>
             <p>{error}</p>
           </EmptyState>
         ) : books == null ? (

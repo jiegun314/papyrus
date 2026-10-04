@@ -2,6 +2,7 @@
  * features/books/BookForm.tsx —— 手动录入表单（新增 / 编辑共用）。
  * 采用「受控字段组件 + 纯数据转换」设计：状态由父级持有，组件只负责渲染。
  */
+import { Book as BookIcon, BookOpen, RefreshCw, Upload } from 'lucide-react';
 import { useRef, useState, type ChangeEvent } from 'react';
 import type { Book, BookInput, BookType, Category, ReadingStatus } from '../../../shared/types';
 import { ebookDownloadUrl, uploadCover, uploadEbook } from '../../api/books';
@@ -172,11 +173,18 @@ function CoverField({
       <label>封面</label>
       <div className="cover-field">
         <div className="cover-field-preview">
-          {value ? <img src={value} alt="封面预览" /> : <span className="cover-fallback">📖</span>}
+          {value ? (
+            <img src={value} alt="封面预览" />
+          ) : (
+            <span className="cover-fallback">
+              <BookOpen size={30} strokeWidth={1.5} />
+            </span>
+          )}
         </div>
         <div className="cover-field-actions">
-          <button type="button" className="btn" onClick={pick} disabled={uploading}>
-            {uploading ? '上传中…' : '📤 上传封面'}
+          <button type="button" className="btn btn-with-icon" onClick={pick} disabled={uploading}>
+            <Upload size={15} />
+            {uploading ? '上传中…' : '上传封面'}
           </button>
           {value ? (
             <button type="button" className="btn-link danger" onClick={() => onChange('')}>
@@ -184,8 +192,14 @@ function CoverField({
             </button>
           ) : null}
           {onRefreshOnline ? (
-            <button type="button" className="btn" onClick={onRefreshOnline} disabled={refreshBusy}>
-              {refreshBusy ? '获取中…' : '🔄 刷新在线封面'}
+            <button
+              type="button"
+              className="btn btn-with-icon"
+              onClick={onRefreshOnline}
+              disabled={refreshBusy}
+            >
+              <RefreshCw size={15} />
+              {refreshBusy ? '获取中…' : '刷新在线封面'}
             </button>
           ) : null}
           <span className="cover-field-hint">支持 JPG / PNG / WebP / GIF</span>
@@ -246,8 +260,9 @@ function EbookField({
       <label>电子书文件</label>
       <div className="ebook-field">
         <div className="ebook-field-actions">
-          <button type="button" className="btn" onClick={pick} disabled={uploading}>
-            {uploading ? '上传中…' : '📚 上传电子书'}
+          <button type="button" className="btn btn-with-icon" onClick={pick} disabled={uploading}>
+            <BookOpen size={15} />
+            {uploading ? '上传中…' : '上传电子书'}
           </button>
           {ebookPath ? (
             <>
@@ -270,7 +285,9 @@ function EbookField({
         </div>
         {ebookPath ? (
           <div className="ebook-file-chip">
-            <span className="ebook-file-icon">📕</span>
+            <span className="ebook-file-icon">
+              <BookIcon size={16} />
+            </span>
             <span className="ebook-file-name" title={ebookFilename}>
               {ebookFilename}
             </span>

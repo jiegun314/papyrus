@@ -1,6 +1,6 @@
 {
   "name": "papyrus",
-  "version": "0.2.0",
+  "version": "0.2.5",
   "private": true,
   "description": "Papyrus —— React 19 + TypeScript 个人书籍管理系统（豆瓣数据源 + SQLite 本地存储）",
   "type": "module",
@@ -26,6 +26,7 @@
     "cheerio": "^1.2.0",
     "drizzle-orm": "^0.45.3",
     "express": "^5.2.1",
+    "lucide-react": "^1.52.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router-dom": "^7.18.4"

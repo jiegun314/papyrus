@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { Check, Info, TriangleAlert } from 'lucide-react';
 
 type ToastType = 'info' | 'success' | 'error';
 
@@ -23,7 +24,13 @@ type ToastFn = (msg: string, type?: ToastType) => void;
 
 const ToastContext = createContext<ToastFn | null>(null);
 
-const ICONS: Record<ToastType, string> = { info: 'ℹ️', success: '✓', error: '✕' };
+/** 每种提示对应的 Lucide 图标 */
+const ICON_SIZE = 16;
+const ICONS: Record<ToastType, ReactNode> = {
+  info: <Info size={ICON_SIZE} />,
+  success: <Check size={ICON_SIZE} strokeWidth={3} />,
+  error: <TriangleAlert size={ICON_SIZE} />,
+};
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);

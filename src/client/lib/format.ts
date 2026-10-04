@@ -19,12 +19,6 @@ export function authorText(book: Pick<Book, 'authors'>): string {
   return Array.isArray(book.authors) && book.authors.length ? book.authors.join(' / ') : '佚名';
 }
 
-/** 用 ★ 文本表达分数（用于「我的评分」等文本场景） */
-export function starsText(v: number): string {
-  const filled = Math.round(v);
-  return '★'.repeat(filled) + '☆'.repeat(Math.max(0, 5 - filled));
-}
-
 /** 字节数 → 人类可读大小（如 2.4 MB） */
 export function fmtBytes(bytes: number | null | undefined): string {
   if (bytes == null || bytes <= 0) return '—';

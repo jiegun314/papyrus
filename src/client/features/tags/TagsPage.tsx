@@ -2,6 +2,7 @@
  * features/tags/TagsPage.tsx —— 标签管理页（route '/tags'）。
  * 标签来源于书籍打标；计数可点击查看该标签下书籍，可删除标签（书保留）。
  */
+import { Tags, TriangleAlert } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import type { Tag } from '../../../shared/types';
 import { errorMessage } from '../../api/http';
@@ -52,16 +53,18 @@ export function TagsPage() {
 
   return (
     <>
-      <h3 className="view-title">🏷 标签管理</h3>
+      <h3 className="view-title view-title-icon">
+        <Tags size={20} /> 标签管理
+      </h3>
 
       {error ? (
-        <EmptyState icon="⚠️">
+        <EmptyState icon={<TriangleAlert size={40} strokeWidth={1.5} />}>
           <p>加载失败：{error}</p>
         </EmptyState>
       ) : tags == null ? (
         <Loading text="正在加载标签…" />
       ) : tags.length === 0 ? (
-        <EmptyState icon="🏷">
+        <EmptyState icon={<Tags size={40} strokeWidth={1.5} />}>
           <p>还没有标签。给书籍添加标签后会自动出现在这里。</p>
         </EmptyState>
       ) : (

@@ -1,7 +1,7 @@
 /**
- * api/meta.ts —— 元数据接口：分类 / 标签 / 统计。
+ * api/meta.ts —— 元数据接口：分类 / 标签 / 统计 / 服务器状态。
  */
-import type { Category, Stats, Tag } from '../../shared/types';
+import type { Category, ServerInfo, ServerSessionStats, Stats, Tag } from '../../shared/types';
 import { request } from './http';
 
 /* ---------- 分类 ---------- */
@@ -39,4 +39,19 @@ export function deleteTag(id: number): Promise<{ ok: boolean }> {
 
 export function getStats(): Promise<Stats> {
   return request<Stats>('/api/stats');
+}
+
+/* ---------- 服务器状态 ---------- */
+
+/** 服务器状态：IP / 端口 / 运行环境 / 模块版本 / 访问统计 */
+export function getServerInfo(): Promise<ServerInfo> {
+  return request<ServerInfo>('/api/server-info');
+}
+
+/** 上报一次访问心跳，返回最新的在线 / 累计访问统计 */
+export function sendHeartbeat(sessionId: string): Promise<ServerSessionStats> {
+  return request<ServerSessionStats>('/api/server-info/heartbeat', {
+    method: 'POST',
+    body: JSON.stringify({ sessionId }),
+  });
 }

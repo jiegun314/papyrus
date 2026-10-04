@@ -3,6 +3,7 @@
  * 按三个语义分组展示：总藏书 / 载体类型 / 阅读状态；
  * 每组数量 > 0 时可点击，弹出对应书籍清单。
  */
+import type { ReactNode } from 'react';
 import type { BookQuery, ReadingStatus, Stats } from '../../../shared/types';
 import { READING_STATUS_OPTIONS, READING_STATUS_TEXT } from '../../lib/readingStatus';
 
@@ -50,9 +51,12 @@ function StatCard({
 export function StatsCards({
   stats,
   onOpenList,
+  children,
 }: {
   stats: Stats;
   onOpenList: (title: string, query: BookQuery) => void;
+  /** 追加在「阅读状态」之后的附加分组（如服务器状态面板） */
+  children?: ReactNode;
 }) {
   // 组一：总藏书
   const totalDef: StatDef = {
@@ -92,6 +96,7 @@ export function StatsCards({
       {renderGroup('藏书', [totalDef])}
       {renderGroup('载体', typeDefs)}
       {renderGroup('阅读状态', statusDefs)}
+      {children}
     </div>
   );
 }

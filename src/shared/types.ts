@@ -241,3 +241,72 @@ export interface ApiError {
   error: string;
   details?: unknown;
 }
+
+/* ---------- 服务器状态（左侧「服务器状态」面板） ---------- */
+
+/** 本机可被局域网访问的地址 */
+export interface ServerAddress {
+  /** 局域网 IPv4，如 192.168.1.10 */
+  ip: string;
+  /** 完整访问地址，如 http://192.168.1.10:3000 */
+  url: string;
+}
+
+/** 模块名 + 版本号 */
+export interface ServerModuleVersion {
+  name: string;
+  version: string;
+}
+
+/** 基本服务配置 */
+export interface ServerConfig {
+  /** 服务监听端口 */
+  port: number;
+  /** 服务协议（Express 默认 http） */
+  protocol: string;
+  /** 主机名 */
+  hostname: string;
+  /** 操作系统，如 "Darwin 25.0.0 (arm64)" */
+  platform: string;
+  /** Node.js 版本，如 "v26.10.0" */
+  nodeVersion: string;
+  /** 数据目录（相对项目根） */
+  dataDir: string;
+  /** SQLite 数据库文件（相对项目根） */
+  dbPath: string;
+  /** 本次服务启动时间（ISO） */
+  startedAt: string;
+  /** 已运行秒数 */
+  uptimeSeconds: number;
+}
+
+/** 访问会话统计（无账号体系下近似「登录数量」） */
+export interface ServerSessionStats {
+  /** 在线会话数（最近 onlineWindowSeconds 秒内有心跳） */
+  onlineCount: number;
+  /** 今日访问数（今天首次出现的会话数） */
+  todayVisits: number;
+  /** 累计访问数（历史累计新会话数，落盘保存） */
+  totalVisits: number;
+  /** 判定「在线」的时间窗口（秒） */
+  onlineWindowSeconds: number;
+  /** 首次访问时间（ISO，无记录时为 null） */
+  firstVisitAt: string | null;
+}
+
+/** 服务器状态信息（GET /api/server-info） */
+export interface ServerInfo {
+  appName: string;
+  appVersion: string;
+  /** 局域网访问地址列表（内网网段优先） */
+  addresses: ServerAddress[];
+  /** 首选访问地址 */
+  primaryUrl: string;
+  config: ServerConfig;
+  /** 功能模块版本 */
+  features: ServerModuleVersion[];
+  /** 运行环境 / 依赖组件版本 */
+  modules: ServerModuleVersion[];
+  /** 访问会话统计 */
+  sessions: ServerSessionStats;
+}

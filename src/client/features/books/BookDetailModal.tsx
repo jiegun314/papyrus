@@ -17,6 +17,23 @@ import {
 } from '../../api/books';
 import { errorMessage } from '../../api/http';
 import { listCategories } from '../../api/meta';
+import {
+  Book as BookIcon,
+  BookOpen,
+  CalendarDays,
+  Coins,
+  FileText,
+  Hash,
+  LoaderCircle,
+  Pencil,
+  Plus,
+  RefreshCw,
+  RotateCw,
+  Star,
+  Trash2,
+  TriangleAlert,
+  X,
+} from 'lucide-react';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Cover } from '../../components/Cover';
 import { EmptyState } from '../../components/EmptyState';
@@ -24,7 +41,7 @@ import { Loading } from '../../components/Loading';
 import { Modal } from '../../components/Modal';
 import { StarRating } from '../../components/StarRating';
 import { useToast } from '../../components/Toast';
-import { authorText, fmtBytes, fmtDate, fmtRating, starsText } from '../../lib/format';
+import { authorText, fmtBytes, fmtDate, fmtRating } from '../../lib/format';
 import { BOOK_TYPE_TEXT } from '../../lib/bookType';
 import { READING_STATUS_OPTIONS, READING_STATUS_TEXT } from '../../lib/readingStatus';
 import { EditBookDialog } from './EditBookDialog';
@@ -230,7 +247,7 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
   if (loadError) {
     return (
       <Modal open title="" onClose={onClose}>
-        <EmptyState icon="⚠️" compact>
+        <EmptyState icon={<TriangleAlert size={36} strokeWidth={1.5} />} compact>
           <p>{loadError}</p>
         </EmptyState>
       </Modal>
@@ -249,7 +266,6 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
   const sortedReviews = [...reviews].sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1));
   const latestRated = sortedReviews.find((r) => r.rating != null)?.rating ?? 0;
   const shownMyRating = liveRating || latestRated;
-  const myRatingText = `我的评分 ${starsText(shownMyRating)}`;
   const catName = book.category?.name ?? '未分类';
   const catColor = book.category?.color;
   const coverCls = `detail-cover${retryArmed ? ' cover-retry' : ''}${retrying ? ' cover-retrying' : ''}`;
@@ -266,7 +282,11 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
             onClick={retryArmed && !retrying ? onCoverRetry : undefined}
             title={retryArmed ? '点击重新下载封面' : undefined}
             onImageError={armCoverRetry}
-            fallback={<span className="cover-fallback">{retrying ? '⏳' : '📖'}</span>}
+            fallback={
+              <span className="cover-fallback">
+                {retrying ? <LoaderCircle size={32} className="spin" /> : <BookOpen size={32} strokeWidth={1.5} />}
+              </span>
+            }
           />
 
           {/* 右：书籍信息 */}
@@ -280,22 +300,45 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
 
             {/* 出版信息胶囊 */}
             <div className="detail-meta">
-              {book.publisher ? <span className="meta-chip">📕 {book.publisher}</span> : null}
-              {book.pubdate ? <span className="meta-chip">🗓 {book.pubdate}</span> : null}
-              {book.pages ? <span className="meta-chip">📄 {book.pages}页</span> : null}
-              {book.price ? <span className="meta-chip">💰 {book.price}</span> : null}
-              {book.isbn13 ? <span className="meta-chip">🔢 ISBN {book.isbn13}</span> : null}
+              {book.publisher ? (
+                <span className="meta-chip">
+                  <BookIcon size={13} /> {book.publisher}
+                </span>
+              ) : null}
+              {book.pubdate ? (
+                <span className="meta-chip">
+                  <CalendarDays size={13} /> {book.pubdate}
+                </span>
+              ) : null}
+              {book.pages ? (
+                <span className="meta-chip">
+                  <FileText size={13} /> {book.pages}页
+                </span>
+              ) : null}
+              {book.price ? (
+                <span className="meta-chip">
+                  <Coins size={13} /> {book.price}
+                </span>
+              ) : null}
+              {book.isbn13 ? (
+                <span className="meta-chip">
+                  <Hash size={13} /> ISBN {book.isbn13}
+                </span>
+              ) : null}
             </div>
 
             {/* 评分：豆瓣 + 我的 */}
             <div className="detail-ratings">
               {book.ratingAverage != null ? (
                 <span className="db-rating">
-                  ★ {fmtRating(book.ratingAverage)}
+                  <Star size={14} fill="currentColor" strokeWidth={0} /> {fmtRating(book.ratingAverage)}
                   <small>豆瓣</small>
                 </span>
               ) : null}
-              <span className="my-rating">{myRatingText}</span>
+              <span className="my-rating">
+                我的评分
+                <StarRating value={shownMyRating} size={15} className="my-rating-stars" />
+              </span>
             </div>
 
             {/* 分类 + 标签 */}
@@ -328,12 +371,12 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
                       title={`移除标签「${t.name}」`}
                       onClick={() => removeTag(t)}
                     >
-                      ×
+                      <X size={12} />
                     </button>
                   </span>
                 ))}
                 <button type="button" className="tag-add" title="添加标签" onClick={() => setTagOpen(true)}>
-                  ＋
+                  <Plus size={14} />
                 </button>
               </div>
             </div>
@@ -363,7 +406,7 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
                 <h3>电子书文件</h3>
                 <div className="ebook-detail-row">
                   <span className="ebook-detail-file">
-                    📕 {book.ebookFilename}
+                    <BookIcon size={15} /> {book.ebookFilename}
                     {book.ebookSize ? <small>（{fmtBytes(book.ebookSize)}）</small> : null}
                   </span>
                   <span className="ebook-detail-actions">
@@ -432,31 +475,33 @@ export function BookDetailModal({ bookId, onClose, onMutated }: BookDetailModalP
 
           {/* 底部操作 */}
           <div className="detail-footer">
-            <button type="button" className="btn" onClick={() => setEditOpen(true)}>
-              ✏️ 编辑信息
+            <button type="button" className="btn btn-with-icon" onClick={() => setEditOpen(true)}>
+              <Pencil size={15} /> 编辑信息
             </button>
             {hasCoverSource ? (
               <>
                 <button
                   type="button"
-                  className="btn"
+                  className="btn btn-with-icon"
                   onClick={onCoverRetry}
                   disabled={retrying || refreshing}
                 >
-                  {retrying ? '下载中…' : '🔄 重新下载封面'}
+                  <RefreshCw size={15} className={retrying ? 'spin' : undefined} />
+                  {retrying ? '下载中…' : '重新下载封面'}
                 </button>
                 <button
                   type="button"
-                  className="btn"
+                  className="btn btn-with-icon"
                   onClick={onRefreshInfo}
                   disabled={refreshing || retrying}
                 >
-                  {refreshing ? '刷新中…' : '↻ 刷新书籍信息'}
+                  <RotateCw size={15} className={refreshing ? 'spin' : undefined} />
+                  {refreshing ? '刷新中…' : '刷新书籍信息'}
                 </button>
               </>
             ) : null}
-            <button type="button" className="btn btn-danger" onClick={() => setDeleteOpen(true)}>
-              🗑 删除书籍
+            <button type="button" className="btn btn-danger btn-with-icon" onClick={() => setDeleteOpen(true)}>
+              <Trash2 size={15} /> 删除书籍
             </button>
           </div>
         </div>

@@ -5,6 +5,7 @@
  *   - 已筛选时，控件右侧显示「✕」快速清除按钮；
  *   - 点击组件外部 / 按 Escape 自动关闭下拉面板。
  */
+import { ChevronDown, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 export interface FilterOption<V extends string | number> {
@@ -92,11 +93,11 @@ export function FilterSelect<V extends string | number>({
               select(undefined);
             }}
           >
-            ✕
+            <X size={13} />
           </span>
         ) : (
           <span className="filter-select-caret" aria-hidden="true">
-            ▾
+            <ChevronDown size={14} />
           </span>
         )}
       </button>

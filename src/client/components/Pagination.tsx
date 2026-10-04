@@ -3,6 +3,7 @@
  * 渲染 上一页 / 页码 / 下一页，页码过多时自动折叠为省略号。
  * 仅在总页数 > 1 时返回内容。
  */
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 /** 生成当前展示的页码序列（number 为页码，'...' 为省略号） */
 function getPageItems(current: number, total: number): (number | '...')[] {
@@ -42,7 +43,7 @@ export function Pagination({
         onClick={() => onChange(page - 1)}
         aria-label="上一页"
       >
-        ‹
+        <ChevronLeft size={16} />
       </button>
       {items.map((it, idx) =>
         it === '...' ? (
@@ -68,7 +69,7 @@ export function Pagination({
         onClick={() => onChange(page + 1)}
         aria-label="下一页"
       >
-        ›
+        <ChevronRight size={16} />
       </button>
     </nav>
   );

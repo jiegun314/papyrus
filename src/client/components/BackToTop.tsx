@@ -2,6 +2,7 @@
  * components/BackToTop.tsx —— 右下角「回到顶部」浮动按钮。
  * 页面向下滚动超出一定距离后浮现，点击平滑回到页首。
  */
+import { ArrowUp } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 /** 滚动超过该像素高度时显示按钮 */
@@ -39,20 +40,7 @@ export function BackToTop() {
       aria-hidden={!show}
       tabIndex={show ? 0 : -1}
     >
-      <svg
-        viewBox="0 0 24 24"
-        width="20"
-        height="20"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M12 19V5" />
-        <path d="M5 12l7-7 7 7" />
-      </svg>
+      <ArrowUp size={20} strokeWidth={2.2} />
     </button>
   );
 }

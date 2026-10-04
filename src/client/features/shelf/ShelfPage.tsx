@@ -2,6 +2,7 @@
  * features/shelf/ShelfPage.tsx —— 书架主页（route '/'）。
  * 统计卡片 + 筛选栏 + 书籍网格；详情 / 按筛选出书清单以弹窗形式叠加。
  */
+import { SearchX, Sprout, TriangleAlert } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Book, BookQuery, Category, Stats } from '../../../shared/types';
 import { listBooks } from '../../api/books';
@@ -15,15 +16,41 @@ import { BookCard } from '../books/BookCard';
 import { BookDetailModal } from '../books/BookDetailModal';
 import { BooksByFilterModal } from '../books/BooksByFilterModal';
 import { FilterBar } from './FilterBar';
+import { ServerStatus } from './ServerStatus';
 import { StatsCards } from './StatsCards';
+import { useMediaQuery, NARROW_LAYOUT_QUERY } from '../../lib/useMediaQuery';
 
 /** 每页展示的书籍数量 */
 const PAGE_SIZE = 50;
 /** 拉取的上限：默认一次最多取 500 本，前端按 PAGE_SIZE 分页展示 */
 const FETCH_LIMIT = 500;
+/** 左侧统计列是否收起（localStorage 记忆键） */
+const SIDE_HIDDEN_KEY = 'papyrus.sideHidden';
 
 export function ShelfPage() {
   const dataVersion = useRefreshVersion();
+  // 窄屏下双栏塌陷为纵向堆叠：服务器状态从左侧统计列移到所有模块最下方
+  const narrow = useMediaQuery(NARROW_LAYOUT_QUERY);
+
+  // 一键收起左侧统计列（PC 收起全部四组；手机收起上方三组），把空间让给书籍列表。
+  // 偏好记在 localStorage，刷新后保持。
+  const [sideHidden, setSideHidden] = useState(() => {
+    try {
+      return localStorage.getItem(SIDE_HIDDEN_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleSide = useCallback(() => {
+    setSideHidden((prev) => {
+      try {
+        localStorage.setItem(SIDE_HIDDEN_KEY, prev ? '0' : '1');
+      } catch {
+        /* 无痕模式等场景下不可写，仅影响记忆 */
+      }
+      return !prev;
+    });
+  }, []);
 
   const [query, setQuery] = useState<BookQuery>({});
   const [stats, setStats] = useState<Stats | null>(null);
@@ -90,7 +117,7 @@ export function ShelfPage() {
   if (stats == null) {
     if (loading) return <Loading text="正在加载书架…" />;
     return (
-      <EmptyState icon="⚠️">
+      <EmptyState icon={<TriangleAlert size={40} strokeWidth={1.5} />}>
         <p>加载失败：{loadError ?? '未知错误'}</p>
       </EmptyState>
     );
@@ -107,18 +134,27 @@ export function ShelfPage() {
       </div>
     ) : null;
 
-  // 双栏布局：右侧统计卡片列吸顶固定，左侧为主内容（筛选栏 + 书籍区域）
+  // 双栏布局：左侧统计列吸顶固定，右侧为主内容（筛选栏 + 书籍区域）
   return (
-    <div className="shelf-layout">
-      <aside className="shelf-side" aria-label="书架统计">
+    <div className={`shelf-layout${sideHidden ? ' is-side-hidden' : ''}`}>
+      <aside className="shelf-side" id="shelf-side" aria-label="书架统计">
         <StatsCards
           stats={stats}
           onOpenList={(title, q) => setListModal({ title, query: q })}
-        />
+        >
+          {/* 宽屏：服务器状态排在「阅读状态」分组之后；窄屏改由下方底部区块渲染 */}
+          {narrow ? null : <ServerStatus />}
+        </StatsCards>
       </aside>
 
       <div className="shelf-main">
-        <FilterBar categories={categories} query={query} onChange={handleFilterChange} />
+        <FilterBar
+          categories={categories}
+          query={query}
+          onChange={handleFilterChange}
+          sideHidden={sideHidden}
+          onToggleSide={toggleSide}
+        />
 
         {loading ? (
           <div className="shelf-refreshing" role="status">
@@ -130,11 +166,15 @@ export function ShelfPage() {
         {loading ? (
           grid
         ) : loadError ? (
-          <EmptyState icon="⚠️">
+          <EmptyState icon={<TriangleAlert size={40} strokeWidth={1.5} />}>
             <p>加载失败：{loadError}</p>
           </EmptyState>
         ) : books.length === 0 ? (
-          <EmptyState icon={hasFilter ? '🔍' : '🪴'}>
+          <EmptyState
+            icon={
+              hasFilter ? <SearchX size={40} strokeWidth={1.5} /> : <Sprout size={40} strokeWidth={1.5} />
+            }
+          >
             {hasFilter ? (
               <>
                 <p>没有找到符合条件的书籍</p>
@@ -143,7 +183,7 @@ export function ShelfPage() {
             ) : (
               <>
                 <p>书架空空如也</p>
-                <p style={{ fontSize: 13, marginTop: 6 }}>点击右上角「＋ 添加书籍」，通过 ISBN 或书名从豆瓣导入</p>
+                <p style={{ fontSize: 13, marginTop: 6 }}>点击右上角的加号按钮，通过 ISBN 或书名从豆瓣导入</p>
               </>
             )}
           </EmptyState>
@@ -161,6 +201,13 @@ export function ShelfPage() {
           </>
         )}
       </div>
+
+      {/* 窄屏（纵向堆叠）：服务器状态放在书架网格之后，即所有模块的最下面 */}
+      {narrow && (
+        <div className="shelf-server-bottom">
+          <ServerStatus />
+        </div>
+      )}
 
       {listModal && (
         <BooksByFilterModal

@@ -2,6 +2,7 @@
  * features/categories/CategoriesPage.tsx —— 分类管理页（route '/categories'）。
  * 新增 / 重命名 / 删除分类；分类计数可点击查看该分类下书籍。
  */
+import { FolderTree, TriangleAlert } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import type { Category } from '../../../shared/types';
 import { errorMessage } from '../../api/http';
@@ -76,10 +77,12 @@ export function CategoriesPage() {
 
   return (
     <>
-      <h3 className="view-title">📚 分类管理</h3>
+      <h3 className="view-title view-title-icon">
+        <FolderTree size={20} /> 分类管理
+      </h3>
 
       {error ? (
-        <EmptyState icon="⚠️">
+        <EmptyState icon={<TriangleAlert size={40} strokeWidth={1.5} />}>
           <p>加载失败：{error}</p>
         </EmptyState>
       ) : categories == null ? (
