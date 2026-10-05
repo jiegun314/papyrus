@@ -227,8 +227,65 @@ svg.lucide {
   overflow-x: hidden;              /* 固定宽度侧栏不做横向滚动（内容一律换行处理） */
   scrollbar-gutter: stable;        /* 常驻滚动条槽位，避免出现滚动条时内容重排 */
   overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
+  /* macOS 默认的「覆盖式」滚动条不占空间、且画在内容之上，scrollbar-gutter 对它无效，
+     表现为滚动时滚动条压住卡片文字。这里必须保持 scrollbar-width / color 为 auto，
+     否则 Chrome / Safari 会忽略下面的 ::-webkit-scrollbar（定宽后才转成占位式滚动条）；
+     Firefox 的兜底见紧随其后的 @supports。 */
+  scrollbar-width: auto;
+  scrollbar-color: auto;
+}
+/* 把滚动条变成「占位式」，正好落在上面预留的 --shelf-side-gutter 槽位里：
+   内容宽度（176px）在滚动前后都不变，滚动条也不再压到文字上。 */
+.shelf-side::-webkit-scrollbar {
+  width: var(--shelf-side-gutter);
+}
+.shelf-side::-webkit-scrollbar-track { background: transparent; }
+.shelf-side::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 999px;
+  border: 3px solid transparent;   /* 左右各内缩 3px，视觉上约 5px 的细滑块 */
+  background-clip: content-box;
+}
+.shelf-side::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-faint);
+  background-clip: content-box;
+}
+/* 不支持 ::-webkit-scrollbar 的浏览器（Firefox 等）：用标准属性，滚动条同样占位 */
+@supports not selector(::-webkit-scrollbar) {
+  .shelf-side {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+  }
+}
+
+/* 详情里的长文本滚动区（内容简介 / 作者简介 / 目录）是同一类问题：
+   容器没有右内边距，覆盖式滚动条会直接压住文字，这里同样改成「占位式」细滚动条。
+   注：.modal-body 也有覆盖式滚动条，但它有 24px 右内边距，滚动条只压在留白上，无需处理。 */
+.detail-section .content,
+.preview-panel .pv-summary {
+  scrollbar-gutter: stable;
+  scrollbar-width: auto;
+  scrollbar-color: auto;
+}
+.detail-section .content::-webkit-scrollbar,
+.preview-panel .pv-summary::-webkit-scrollbar {
+  width: 11px;
+}
+.detail-section .content::-webkit-scrollbar-track,
+.preview-panel .pv-summary::-webkit-scrollbar-track { background: transparent; }
+.detail-section .content::-webkit-scrollbar-thumb,
+.preview-panel .pv-summary::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+@supports not selector(::-webkit-scrollbar) {
+  .detail-section .content,
+  .preview-panel .pv-summary {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+  }
 }
 /* 一键收起：整列隐藏，书籍列表占满整屏。
    PC 隐藏全部四组（藏书 / 载体 / 阅读状态 / 服务器）；
@@ -1060,6 +1117,27 @@ button.stat-card.clickable { cursor: pointer; }
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(51,104,160,.12);
 }
+/* 单行控件统一「确定高度」。
+   原生 <select> 的固有高度各引擎并不一致：Safari 会直接忽略垂直内边距（控件明显比输入框矮）、
+   Firefox 偏矮、Chrome 反而偏高 2px —— 表现就是「分类 / 阅读状态的下拉框和其他控件不一样高」。
+   这里给输入框与下拉框定同一个高度，任何浏览器下都严格等高。 */
+.form-field input[type="text"],
+.form-field input[type="number"],
+.form-field select {
+  height: 37px;
+}
+/* 下拉框：去掉原生外观自绘箭头，文字按行高垂直居中（35 = 37 − 上下边框各 1px）。
+   箭头沿用项目既有的 SVG 雪佛龙，与站内其他下拉保持一致。 */
+.form-field select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0 32px 0 12px;   /* 右侧留出箭头位置 */
+  line-height: 35px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%237a7062' fill='none' stroke-width='1.6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  cursor: pointer;
+}
 .form-field textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
 .form-field input[type="color"] { padding: 2px; height: 40px; cursor: pointer; }
 
@@ -1501,13 +1579,14 @@ button.stat-card.clickable { cursor: pointer; }
 /* 分类行 + 颜色圆点 */
 .detail-category { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink-soft); flex: none; }
 .category-select {
+  height: 28px;                 /* 定高：原生 <select> 在 Safari 下会忽略垂直内边距而塌陷 */
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--card);
   color: var(--ink);
   font-size: 13px;
   font-family: var(--sans);
-  padding: 4px 8px;
+  padding: 0 8px;
   cursor: pointer;
   outline: none;
   transition: border-color .16s;
@@ -1612,6 +1691,7 @@ button.stat-card.clickable { cursor: pointer; }
 /* 分段时间选择器（书籍类型等） */
 .seg-group {
   display: inline-flex;
+  height: 37px;                    /* 与同表单的输入框 / 下拉框严格等高 */
   border: 1px solid var(--line);
   border-radius: 999px;
   overflow: hidden;
@@ -1619,9 +1699,11 @@ button.stat-card.clickable { cursor: pointer; }
   width: fit-content;
 }
 .seg-btn {
+  display: inline-flex;
+  align-items: center;             /* 高度由容器决定，文字垂直居中 */
   border: none;
   background: transparent;
-  padding: 8px 20px;
+  padding: 0 20px;
   font-family: var(--sans);
   font-size: 14px;
   color: var(--ink-soft);
